@@ -80,6 +80,7 @@ func DefaultStaticPrecompiles(
 		WithPraguePrecompiles().
 		WithP256Precompile().
 		WithBech32Precompile().
+		WithDilithiumPrecompile().
 		WithStakingPrecompile(stakingKeeper, bankKeeper, opts...).
 		WithDistributionPrecompile(distributionKeeper, stakingKeeper, bankKeeper, opts...).
 		WithICS02Precompile(codec, clientKeeper).

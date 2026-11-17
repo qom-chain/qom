@@ -25,6 +25,7 @@ import (
 	cmttypes "github.com/cometbft/cometbft/types"
 
 	dbm "github.com/cosmos/cosmos-db"
+	"github.com/cosmos/evm/crypto/hybrid"
 	"github.com/cosmos/evm/indexer"
 	evmmempool "github.com/cosmos/evm/mempool"
 	evmmetrics "github.com/cosmos/evm/metrics"
@@ -441,9 +442,22 @@ func startInProcess(svrCtx *server.Context, clientCtx client.Context, opts Start
 		logger.Info("starting node with ABCI CometBFT in-process")
 
 		cmtApp := server.NewCometABCIWrapper(app)
+		// Ed25519 remains the consensus key. The ML-DSA key is the additional
+		// vote-extension layer and is generated beside priv_validator_key.json
+		// when it does not already exist.
+		stdPV := pvm.LoadOrGenFilePV(cfg.PrivValidatorKeyFile(), cfg.PrivValidatorStateFile())
+		mldsaKeyPath := hybrid.MLDSAKeyPath(cfg.PrivValidatorKeyFile())
+		hpv, err := hybrid.AttachMLDSAKey(stdPV, mldsaKeyPath)
+		if err != nil {
+			logger.Error("failed to load hybrid validator", "error", err.Error())
+			return err
+		}
+		hybrid.SetGlobalHybridValidator(hpv)
+		logger.Info("loaded hybrid validator", "consensus_key", "ed25519", "mldsa_key", mldsaKeyPath)
+
 		bftNode, err = node.NewNode(
 			cfg,
-			pvm.LoadOrGenFilePV(cfg.PrivValidatorKeyFile(), cfg.PrivValidatorStateFile()),
+			hpv,
 			nodeKey,
 			proxy.NewLocalClientCreator(cmtApp),
 			genDocProvider,

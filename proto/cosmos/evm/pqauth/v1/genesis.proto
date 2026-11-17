@@ -1,0 +1,65 @@
+syntax = "proto3";
+package cosmos.evm.pqauth.v1;
+
+import "cosmos_proto/cosmos.proto";
+import "gogoproto/gogo.proto";
+
+option go_package = "github.com/cosmos/evm/x/pqauth/types";
+
+// Params are the pqauth module parameters.
+message Params {
+  // evm_window_duration is how many blocks an EVM authorisation window stays
+  // open after MsgOpenEVMWindow. The stored expiry is the height at which the
+  // window was opened plus this duration. The window is open while the current
+  // height is strictly less than that expiry. Zero in genesis means the default
+  // of 100 blocks.
+  int64 evm_window_duration = 1;
+
+  // restrict_cosmos_precompiles, when true, rejects an Ethereum transaction
+  // from an ML-DSA-registered account whose top-level call target is the bank,
+  // staking, or gov precompile while that account's EVM window is open.
+  //
+  // An open window authorises the Ethereum transaction with the account's
+  // ethsecp256k1 key alone. Those precompiles can move Cosmos-module state, so
+  // a forged secp256k1 signature during the window can spend bank balances,
+  // stake, or vote. The check sees only the transaction's top-level To
+  // address. A call that reaches the same precompile through another contract
+  // is not rejected here. False preserves that compatibility and is the default.
+  bool restrict_cosmos_precompiles = 2;
+}
+
+// GenesisState defines the pqauth module's genesis state.
+message GenesisState {
+  // keys are the account to ML-DSA-87 public key bindings at genesis.
+  repeated MLDSAKey keys = 1 [(gogoproto.nullable) = false];
+  // windows are the account to EVM authorisation window bindings at genesis.
+  repeated EVMWindow windows = 2 [(gogoproto.nullable) = false];
+  // params are the module parameters.
+  Params params = 3 [(gogoproto.nullable) = false];
+  // validator_keys are the consensus address to ML-DSA-87 public key bindings.
+  repeated ValidatorMLDSAKey validator_keys = 4 [(gogoproto.nullable) = false];
+}
+
+// MLDSAKey is one account's registered ML-DSA-87 public key.
+message MLDSAKey {
+  // account is the bech32 account address.
+  string account = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  // pub_key is the 2592-byte ML-DSA-87 public key.
+  bytes pub_key = 2;
+}
+
+// EVMWindow is one account's EVM authorisation window.
+message EVMWindow {
+  // account is the bech32 account address.
+  string account = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  // expiry_height is the first block height at which the window is closed.
+  int64 expiry_height = 2;
+}
+
+// ValidatorMLDSAKey is one validator consensus address's ML-DSA-87 public key.
+message ValidatorMLDSAKey {
+  // consensus_address is the raw CometBFT consensus address.
+  bytes consensus_address = 1;
+  // pub_key is the 2592-byte ML-DSA-87 public key.
+  bytes pub_key = 2;
+}

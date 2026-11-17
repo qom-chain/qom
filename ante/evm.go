@@ -19,6 +19,8 @@ func newMonoEVMAnteHandler(ctx sdk.Context, options HandlerOptions) sdk.AnteHand
 			&evmParams,
 			&feemarketParams,
 		),
+		// MonoDecorator calls next only after ethereum signature verification.
+		evmante.NewEVMWindowDecorator(options.AccountKeeper, options.PQAuthKeeper),
 		NewTxListenerDecorator(options.PendingTxListener),
 	}
 

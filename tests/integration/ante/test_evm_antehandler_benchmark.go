@@ -156,5 +156,6 @@ func (s *benchmarkSuite) generateHandlerOptions() ante.HandlerOptions {
 		SigGasConsumer:         ante.SigVerificationGasConsumer,
 		MaxTxGasWanted:         1_000_000_000,
 		DynamicFeeChecker:      true,
+		PQAuthKeeper:           stubPQAuthKeeper{},
 	}
 }

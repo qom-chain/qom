@@ -10,6 +10,7 @@ require (
 	cosmossdk.io/log/v2 v2.1.0
 	cosmossdk.io/math v1.5.3
 	cosmossdk.io/tools/confix v0.1.2
+	github.com/cloudflare/circl v1.6.3
 	github.com/cometbft/cometbft v0.39.3
 	github.com/cosmos/cosmos-db v1.1.3
 	github.com/cosmos/cosmos-sdk v0.54.3
@@ -373,6 +374,9 @@ replace (
 	// use cosmos fork of keyring
 	github.com/99designs/keyring => github.com/cosmos/keyring v1.2.0
 	github.com/cosmos/evm => ../
+	// In-process CometBFT carries vote round and vote type on the ABCI request.
+	// Socket and gRPC ABCI drop those fields. See scripts/cometbft-voteext.patch.
+	github.com/cometbft/cometbft => ../../src/cometbft-v0.39.3-voteext
 	// use Cosmos geth fork
 	// branch: release/1.17
 	github.com/ethereum/go-ethereum => github.com/cosmos/go-ethereum v1.17.2-cosmos-0
