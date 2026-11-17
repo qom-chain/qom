@@ -372,6 +372,7 @@ require (
 replace (
 	// use cosmos fork of keyring
 	github.com/99designs/keyring => github.com/cosmos/keyring v1.2.0
+	github.com/cometbft/cometbft => ../../src/cometbft-v0.39.3-voteext
 	github.com/cosmos/evm => ../
 	// use Cosmos geth fork
 	// branch: release/1.17

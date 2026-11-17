@@ -19,10 +19,10 @@ QOM combines full Ethereum compatibility (MetaMask, Solidity, JSON-RPC) with opt
 
 ## Quick Links
 
-- [Mainnet Parameters](docs/mainnet.md)
-- How to add QOM to MetaMask
-- How to run a full node / public RPC
-- How to become a validator
+- [Mainnet parameters and genesis hash](docs/mainnet.md#chain-parameters)
+- [Add QOM to MetaMask](docs/mainnet.md#add-qom-to-metamask)
+- [Run a full node or public RPC](docs/mainnet.md#run-a-full-node)
+- [Become a validator](docs/mainnet.md#become-a-validator)
 
 ## Getting Started
 

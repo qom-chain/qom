@@ -1,0 +1,53 @@
+diff --git a/abci/types/types.pb.go b/abci/types/types.pb.go
+--- a/abci/types/types.pb.go
++++ b/abci/types/types.pb.go
+@@ -1430,6 +1430,14 @@
+ 	NextValidatorsHash []byte        `protobuf:"bytes,7,opt,name=next_validators_hash,json=nextValidatorsHash,proto3" json:"next_validators_hash,omitempty"`
+ 	// address of the public key of the original proposer of the block.
+ 	ProposerAddress []byte `protobuf:"bytes,8,opt,name=proposer_address,json=proposerAddress,proto3" json:"proposer_address,omitempty"`
++	// Round is the vote round. Stock CometBFT v0.39 does not put this on the
++	// ABCI request. QOMX sets it in state/execution.go. The in-process client
++	// passes this struct by pointer, so the field is visible to the application
++	// without a protobuf change. A socket or gRPC ABCI client drops it.
++	Round int32
++	// VoteType is the CometBFT vote type. Precommit is 2. Same in-process caveat
++	// as Round.
++	VoteType int32
+ }
+ 
+ func (m *RequestExtendVote) Reset()         { *m = RequestExtendVote{} }
+@@ -1529,6 +1537,13 @@
+ 	ValidatorAddress []byte `protobuf:"bytes,2,opt,name=validator_address,json=validatorAddress,proto3" json:"validator_address,omitempty"`
+ 	Height           int64  `protobuf:"varint,3,opt,name=height,proto3" json:"height,omitempty"`
+ 	VoteExtension    []byte `protobuf:"bytes,4,opt,name=vote_extension,json=voteExtension,proto3" json:"vote_extension,omitempty"`
++	// Round is the vote round. Stock CometBFT v0.39 does not put this on the
++	// ABCI request. QOMX sets it in state/execution.go. The in-process client
++	// passes this struct by pointer. A socket or gRPC ABCI client drops it.
++	Round int32
++	// VoteType is the CometBFT vote type. Precommit is 2. Same in-process caveat
++	// as Round.
++	VoteType int32
+ }
+ 
+ func (m *RequestVerifyVoteExtension) Reset()         { *m = RequestVerifyVoteExtension{} }
+diff --git a/state/execution.go b/state/execution.go
+--- a/state/execution.go
++++ b/state/execution.go
+@@ -401,6 +401,8 @@
+ 		Misbehavior:        block.Evidence.Evidence.ToABCI(),
+ 		NextValidatorsHash: block.NextValidatorsHash,
+ 		ProposerAddress:    block.ProposerAddress,
++		Round:              vote.Round,
++		VoteType:           int32(vote.Type),
+ 	}
+ 
+ 	resp, err := blockExec.proxyApp.ExtendVote(ctx, &req)
+@@ -416,6 +418,8 @@
+ 		ValidatorAddress: vote.ValidatorAddress,
+ 		Height:           vote.Height,
+ 		VoteExtension:    vote.Extension,
++		Round:            vote.Round,
++		VoteType:         int32(vote.Type),
+ 	}
+ 
+ 	resp, err := blockExec.proxyApp.VerifyVoteExtension(ctx, &req)

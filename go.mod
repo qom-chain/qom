@@ -381,6 +381,8 @@ require (
 replace (
 	// use cosmos fork of keyring
 	github.com/99designs/keyring => github.com/cosmos/keyring v1.2.0
+	// In-process CometBFT with vote-extension round and vote type. See scripts/patch-cometbft-voteext.sh.
+	github.com/cometbft/cometbft => ../src/cometbft-v0.39.3-voteext
 	// use Cosmos geth fork
 	// branch: release/1.17
 	github.com/ethereum/go-ethereum => github.com/cosmos/go-ethereum v1.17.2-cosmos-0
