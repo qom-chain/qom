@@ -91,23 +91,30 @@ the same `HOST:26656`.
 
 ## Build
 
-Vote extensions carry the vote round and vote type on the in-process ABCI
-connection. Socket and gRPC ABCI drop those fields, so run `evmd start` with
-the in-process node.
+Live mainnet (`qom_33303-1`) uses stock CometBFT v0.39.3. Vote extensions are
+signed and verified with round 0 and vote type 2 (precommit). `evmd/go.mod`
+has no CometBFT replace.
 
-From the repository root, with `CGO_ENABLED=1` and Go 1.25:
+Do not run `scripts/patch-cometbft-voteext.sh` for a mainnet build. The
+round-aware variant is on branch `qomx/voteext-round-aware` for a future
+coordinated upgrade. Mixing the two versions breaks vote-extension
+verification for any round greater than 0. The CometBFT replace in the
+root `go.mod` is only for root-module tests that use that patch. It is
+not used to build `evmd`.
+
+From the repository root, with `CGO_ENABLED=1` and Go 1.25.9:
 
 ```bash
-# Downloads cometbft v0.39.3 into the module cache if it is missing,
-# then writes ../src/cometbft-v0.39.3-voteext and applies
-# scripts/cometbft-voteext.patch. The patched tree is not committed.
-sh scripts/patch-cometbft-voteext.sh
-make build
+# Clones Cosmos SDK v0.54.3 to ../src/cosmos-sdk-v0.54.3-qomx, applies
+# scripts/cosmos-sdk-v0.54.3-clifix.patch, and adds a relative replace
+# in evmd/go.mod. The patched tree is not committed.
+sh scripts/apply-cosmos-sdk-clifix.sh
+cd evmd && go build ./cmd/evmd
+git checkout go.mod go.sum   # do not commit the local replace
 ```
 
-`go.mod` replaces `github.com/cometbft/cometbft` with
-`../src/cometbft-v0.39.3-voteext`. `evmd/go.mod` replaces it with
-`../../src/cometbft-v0.39.3-voteext`. Run the patch script before `make build`.
+Go builds of `evmd` need several GB of temp space. If `/tmp` is a small
+tmpfs, set `TMPDIR` to a directory on disk.
 
 ## Add QOM to MetaMask
 
@@ -217,13 +224,19 @@ should dial. The signed gentx memo stays `0.0.0.0`.
 ## Become a validator
 
 Sync a full node first. Fund an ethsecp256k1 account with the stake plus
-several hundred QOMX of liquid tokens. Registration transactions below use
-`--gas 2000000` at the floor price, which is about 95.24 QOMX each.
+about 100 QOMX of liquid tokens for fees. Use
+`--gas auto --gas-adjustment 1.1 --gas-prices 47619047619048aqomx`.
+A normal transaction such as `create-validator` is typically about
+90-100k gas (about 4-5 QOMX at the floor). A PQ transaction from a
+registered account is typically about 397k gas (about 19-20 QOMX).
+These figures are approximate and depend on state. Fees will drop if
+governance lowers the fee-market floor.
 
 Create the validator with the secp256k1 key while the account has no
 account-level ML-DSA key yet. Then register the consensus ML-DSA key.
 Registering the account key first forces every later Cosmos transaction,
-including `create-validator`, through hybrid signing.
+including `create-validator`, through hybrid signing. The CLI cannot
+produce ML-DSA account signatures on ordinary `evmd tx` commands.
 
 ```bash
 evmd keys add validator --keyring-backend file --home "$HOME_DIR"
@@ -255,7 +268,8 @@ evmd tx staking create-validator validator.json \
   --from validator \
   --keyring-backend file \
   --chain-id "$CHAIN_ID" \
-  --gas 500000 \
+  --gas auto \
+  --gas-adjustment 1.1 \
   --gas-prices 47619047619048aqomx \
   --home "$HOME_DIR"
 
@@ -267,7 +281,8 @@ evmd tx pqauth register-validator-mldsa-key "$CONSENSUS_HEX" \
   --key-file "$HOME_DIR/config/mldsa_priv_validator_key.json" \
   --keyring-backend file \
   --chain-id "$CHAIN_ID" \
-  --gas 2000000 \
+  --gas auto \
+  --gas-adjustment 1.1 \
   --gas-prices 47619047619048aqomx \
   --home "$HOME_DIR"
 ```
@@ -291,7 +306,8 @@ evmd tx pqauth register-mldsa-key \
   --key-file "$HOME_DIR/account-mldsa.json" \
   --keyring-backend file \
   --chain-id "$CHAIN_ID" \
-  --gas 2000000 \
+  --gas auto \
+  --gas-adjustment 1.1 \
   --gas-prices 47619047619048aqomx \
   --home "$HOME_DIR"
 ```
@@ -304,7 +320,8 @@ evmd tx bank send validator cosmos1... 1000000000000000000aqomx \
   --from validator \
   --keyring-backend file \
   --chain-id "$CHAIN_ID" \
-  --gas 1000000 \
+  --gas auto \
+  --gas-adjustment 1.1 \
   --gas-prices 47619047619048aqomx \
   --generate-only \
   --home "$HOME_DIR" > unsigned.json
@@ -319,9 +336,10 @@ evmd tx pqauth sign unsigned.json \
 evmd tx broadcast signed.json --home "$HOME_DIR" --chain-id "$CHAIN_ID"
 ```
 
-Use at least 1,000,000 gas for a hybrid bank send (a successful one consumes
-about 413,742). A limit of 300,000 runs out of gas in ante, before the
-ML-DSA signature is checked. Use 2,000,000 gas for register and rotate.
+Use `--gas auto --gas-adjustment 1.1 --gas-prices 47619047619048aqomx`.
+A hybrid bank send from a registered account is typically about 397k gas
+(about 19-20 QOMX at the floor). A limit of 300,000 runs out of gas in
+ante, before the ML-DSA signature is checked.
 
 Open the EVM window with a hybrid-signed `MsgOpenEVMWindow` after the account
 key is registered. The window stays open for 1000 blocks from the block that
