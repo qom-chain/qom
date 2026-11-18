@@ -126,8 +126,12 @@ func (hpv *HybridPrivValidator) SignProposal(chainID string, proposal *tmproto.P
 }
 
 func (hpv *HybridPrivValidator) SignVote(chainID string, vote *tmproto.Vote) error {
-	// ExtendVote may have signed with a request that omitted the round. Rewrite
-	// the extension from the vote itself before Ed25519 binds those bytes.
+	// On the round-aware CometBFT tree, ExtendVote already signs with req.Round
+	// and req.VoteType, so VoteExtensionCommits matches and this rewrite is a
+	// no-op. It is kept for the case where the ABCI request omitted those
+	// fields (stock or socket/gRPC CometBFT). Rewriting here without a matching
+	// VerifyVoteExtension round is what halted a multi-validator set at r>0
+	// on stock CometBFT; the patched requests and handlers must stay in sync.
 	if hpv.IsHybridEnabled() && vote != nil && vote.Type == tmproto.PrecommitType && len(vote.BlockID.Hash) > 0 {
 		if !VoteExtensionCommits(vote.Extension, vote.Round, int32(vote.Type)) {
 			ext, err := hpv.SignVoteExtension(chainID, vote.Height, vote.Round, int32(vote.Type), vote.BlockID.Hash)
