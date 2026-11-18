@@ -441,13 +441,29 @@ func startInProcess(svrCtx *server.Context, clientCtx client.Context, opts Start
 	} else {
 		logger.Info("starting node with ABCI CometBFT in-process")
 
+		if err := assertVoteExtensionRoundPatch(); err != nil {
+			logger.Error("vote-extension round patch missing", "error", err.Error())
+			return err
+		}
+
 		cmtApp := server.NewCometABCIWrapper(app)
 		// Ed25519 remains the consensus key. The ML-DSA key is the additional
-		// vote-extension layer and is generated beside priv_validator_key.json
-		// when it does not already exist.
+		// vote-extension layer. A missing key file is auto-generated only when
+		// this consensus address has no on-chain or genesis ML-DSA binding.
 		stdPV := pvm.LoadOrGenFilePV(cfg.PrivValidatorKeyFile(), cfg.PrivValidatorStateFile())
 		mldsaKeyPath := hybrid.MLDSAKeyPath(cfg.PrivValidatorKeyFile())
-		hpv, err := hybrid.AttachMLDSAKey(stdPV, mldsaKeyPath)
+		var storeLookup func([]byte) ([]byte, bool)
+		if lookup, ok := app.(interface {
+			LookupValidatorMLDSAPubKey([]byte) ([]byte, bool)
+		}); ok {
+			storeLookup = lookup.LookupValidatorMLDSAPubKey
+		}
+		boundPubKey, _, err := hybrid.ResolveValidatorMLDSABinding([]byte(stdPV.GetAddress()), cfg.GenesisFile(), storeLookup)
+		if err != nil {
+			logger.Error("failed to resolve ML-DSA binding", "error", err.Error())
+			return err
+		}
+		hpv, err := hybrid.AttachMLDSAKey(stdPV, mldsaKeyPath, boundPubKey)
 		if err != nil {
 			logger.Error("failed to load hybrid validator", "error", err.Error())
 			return err

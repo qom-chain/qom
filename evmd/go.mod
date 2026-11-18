@@ -374,10 +374,11 @@ replace (
 	// use cosmos fork of keyring
 	github.com/99designs/keyring => github.com/cosmos/keyring v1.2.0
 	github.com/cosmos/evm => ../
-	// Live mainnet (qom_33303-1) runs stock CometBFT v0.39.3: vote extensions are
-	// signed with round 0 / precommit (see abci/vote_extensions.go). The
-	// round-aware variant that needs scripts/cometbft-voteext.patch is kept on
-	// branch qomx/voteext-round-aware for a future coordinated upgrade.
+	// Live mainnet (qom_33303-1) requires the in-process CometBFT vote-extension
+	// patch (scripts/patch-cometbft-voteext.sh / scripts/prepare-evmd-build.sh)
+	// so ExtendVote and VerifyVoteExtension carry Round and VoteType. Do not
+	// commit the local replace. Do not mix this binary with stock CometBFT:
+	// a mixed validator set halts at round >= 1.
 	// use Cosmos geth fork
 	// branch: release/1.17
 	github.com/ethereum/go-ethereum => github.com/cosmos/go-ethereum v1.17.2-cosmos-0

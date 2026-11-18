@@ -91,30 +91,34 @@ the same `HOST:26656`.
 
 ## Build
 
-Live mainnet (`qom_33303-1`) uses stock CometBFT v0.39.3. Vote extensions are
-signed and verified with round 0 and vote type 2 (precommit). `evmd/go.mod`
-has no CometBFT replace.
-
-Do not run `scripts/patch-cometbft-voteext.sh` for a mainnet build. The
-round-aware variant is on branch `qomx/voteext-round-aware` for a future
-coordinated upgrade. Mixing the two versions breaks vote-extension
-verification for any round greater than 0. The CometBFT replace in the
-root `go.mod` is only for root-module tests that use that patch. It is
-not used to build `evmd`.
+Live mainnet (`qom_33303-1`) requires the round-aware evmd build. Vote
+extensions are signed and verified with the actual CometBFT vote round and
+vote type (precommit). Every validator must run this patched build.
+**Mixing a stock CometBFT evmd with a patched validator set halts the
+chain at round ≥ 1.** Full nodes that are not in the validator set should
+still run the same build so they compile and start (the startup guard
+refuses a binary built against stock CometBFT).
 
 From the repository root, with `CGO_ENABLED=1` and Go 1.25.9:
 
 ```bash
-# Clones Cosmos SDK v0.54.3 to ../src/cosmos-sdk-v0.54.3-qomx, applies
-# scripts/cosmos-sdk-v0.54.3-clifix.patch, and adds a relative replace
-# in evmd/go.mod. The patched tree is not committed.
-sh scripts/apply-cosmos-sdk-clifix.sh
-cd evmd && go build ./cmd/evmd
-git checkout go.mod go.sum   # do not commit the local replace
+# Prepares uncommitted local trees and relative evmd/go.mod replaces:
+#   ../src/cometbft-v0.39.3-voteext   (scripts/cometbft-voteext.patch)
+#   ../src/cosmos-sdk-v0.54.3-qomx    (scripts/cosmos-sdk-v0.54.3-clifix.patch)
+sh scripts/prepare-evmd-build.sh
+cd evmd && go build -trimpath -buildvcs=false -ldflags="-s -w" ./cmd/evmd
+git checkout -- go.mod go.sum   # do not commit the local replaces
 ```
 
-Go builds of `evmd` need several GB of temp space. If `/tmp` is a small
-tmpfs, set `TMPDIR` to a directory on disk.
+`-buildvcs=false` keeps the binary hash independent of whether the
+sources sit in a git checkout. `TMPDIR` must point at a disk-backed
+directory if `/tmp` is a small tmpfs; the build needs several GB of
+temp space.
+
+A binary built without the CometBFT patch will not compile (`evmd`
+references `QOMXABCIVoteExtensionRoundPatched`). If the ABCI request
+types somehow lack a `Round` field, `evmd start` refuses to launch.
+See `docs/voteext-round-aware-cutover.md`.
 
 ## Add QOM to MetaMask
 
@@ -210,13 +214,15 @@ contain all three of these files before the first `evmd start`:
 - `config/node_key.json` (node ID `25c9967d869feb5340d85c01cfa16ff1d1591632`)
 - `config/mldsa_priv_validator_key.json` (ML-DSA-87 vote-extension key)
 
-`evmd start` creates `config/mldsa_priv_validator_key.json` when the file is
-absent. A generated file will not match the public key in genesis, and vote
-extensions from height 1 will fail. Copy the original file into place first,
-mode `0600`. Back up the three key files and the account keyring. Replacing
+`evmd start` auto-generates `config/mldsa_priv_validator_key.json` only
+when this consensus address has no on-chain or genesis pqauth binding
+(a fresh node). This genesis validator already has a binding, so a
+missing or mismatched key file is a hard startup error and no new file
+is written. Copy the original file into place first, mode `0600`. Back
+up the three key files and the account keyring. Replacing
 `priv_validator_key.json` on a synced home also requires deleting
-`data/priv_validator_state.json`, which is a separate recovery step and is
-not part of a normal start.
+`data/priv_validator_state.json`, which is a separate recovery step and
+is not part of a normal start.
 
 Set `external_address` on this node to the public `HOST:26656` that peers
 should dial. The signed gentx memo stays `0.0.0.0`.

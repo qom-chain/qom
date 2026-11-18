@@ -909,6 +909,21 @@ func (app *EVMD) LoadHeight(height int64) error {
 	return app.LoadVersion(height)
 }
 
+// LookupValidatorMLDSAPubKey returns the ML-DSA-87 public key bound to consAddr
+// in committed app state. It returns false before InitChain (height 0), so the
+// caller can fall back to the genesis binding.
+func (app *EVMD) LookupValidatorMLDSAPubKey(consAddr []byte) ([]byte, bool) {
+	height := app.LastBlockHeight()
+	if height <= 0 || len(consAddr) == 0 {
+		return nil, false
+	}
+	ctx := app.NewContextLegacy(true, cmtproto.Header{
+		Height:  height,
+		ChainID: app.ChainID(),
+	})
+	return app.PQAuthKeeper.GetValidatorMLDSAPubKey(ctx, sdk.ConsAddress(consAddr))
+}
+
 // LegacyAmino returns EVMD's amino codec.
 //
 // NOTE: This is solely to be used for testing purposes as it may be desirable
