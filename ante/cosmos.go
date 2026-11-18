@@ -21,10 +21,13 @@ func newCosmosAnteHandler(ctx sdk.Context, options HandlerOptions) sdk.AnteHandl
 
 	return sdk.ChainAnteDecorators(
 		cosmosante.NewRejectMessagesDecorator(), // reject MsgEthereumTxs
-		cosmosante.NewAuthzLimiterDecorator( // disable the Msg types that cannot be included on an authz.MsgExec msgs field
-			sdk.MsgTypeURL(&evmtypes.MsgEthereumTx{}),
-			sdk.MsgTypeURL(&sdkvesting.MsgCreateVestingAccount{}),
-		),
+		cosmosante.NewAuthzLimiterDecorator(append( // disable the Msg types that cannot be included on an authz.MsgExec msgs field
+			[]string{
+				sdk.MsgTypeURL(&evmtypes.MsgEthereumTx{}),
+				sdk.MsgTypeURL(&sdkvesting.MsgCreateVestingAccount{}),
+			},
+			cosmosante.PQAuthzDisabledMsgURLs()...,
+		)...),
 		ante.NewSetUpContextDecorator(),
 		ante.NewExtensionOptionsDecorator(options.ExtensionOptionChecker),
 		ante.NewValidateBasicDecorator(),
@@ -38,6 +41,7 @@ func newCosmosAnteHandler(ctx sdk.Context, options HandlerOptions) sdk.AnteHandl
 		ante.NewValidateSigCountDecorator(options.AccountKeeper),
 		ante.NewSigGasConsumeDecorator(options.AccountKeeper, options.SigGasConsumer),
 		ante.NewSigVerificationDecorator(options.AccountKeeper, options.SignModeHandler),
+		cosmosante.NewMLDSASigDecorator(options.AccountKeeper, options.PQAuthKeeper, options.SignModeHandler, options.AuthzKeeper, options.Cdc),
 		ante.NewIncrementSequenceDecorator(options.AccountKeeper),
 		ibcante.NewRedundantRelayDecorator(options.IBCKeeper),
 	)

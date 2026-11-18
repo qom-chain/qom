@@ -1,0 +1,65 @@
+syntax = "proto3";
+package cosmos.evm.pqauth.v1;
+
+import "cosmos_proto/cosmos.proto";
+import "cosmos/evm/pqauth/v1/genesis.proto";
+import "gogoproto/gogo.proto";
+import "google/api/annotations.proto";
+
+option go_package = "github.com/cosmos/evm/x/pqauth/types";
+
+// Query defines the pqauth gRPC querier service.
+service Query {
+  // MLDSAPubKey queries the ML-DSA-87 public key registered to an account.
+  rpc MLDSAPubKey(QueryMLDSAPubKeyRequest) returns (QueryMLDSAPubKeyResponse) {
+    option (google.api.http).get = "/cosmos/evm/pqauth/v1/mldsa_pub_key/{account}";
+  }
+
+  // EVMWindow queries an account's EVM authorisation window.
+  rpc EVMWindow(QueryEVMWindowRequest) returns (QueryEVMWindowResponse) {
+    option (google.api.http).get = "/cosmos/evm/pqauth/v1/evm_window/{account}";
+  }
+
+  // Params queries the pqauth module parameters.
+  rpc Params(QueryParamsRequest) returns (QueryParamsResponse) {
+    option (google.api.http).get = "/cosmos/evm/pqauth/v1/params";
+  }
+}
+
+// QueryMLDSAPubKeyRequest is the request for an account's registered key.
+message QueryMLDSAPubKeyRequest {
+  // account is the bech32 account address.
+  string account = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+}
+
+// QueryMLDSAPubKeyResponse is the registered ML-DSA-87 public key, if any.
+message QueryMLDSAPubKeyResponse {
+  // pub_key is the 2592-byte ML-DSA-87 public key. Empty when registered is false.
+  bytes pub_key = 1;
+  // registered is true when the account has a bound ML-DSA key.
+  bool registered = 2;
+}
+
+// QueryEVMWindowRequest is the request for an account's EVM authorisation window.
+message QueryEVMWindowRequest {
+  // account is the bech32 account address.
+  string account = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+}
+
+// QueryEVMWindowResponse is the account's EVM authorisation window.
+message QueryEVMWindowResponse {
+  // expiry_height is the first block height at which the window is closed.
+  // Zero when the account has no stored window.
+  int64 expiry_height = 1;
+  // open is true when the window is open at the current block height.
+  bool open = 2;
+}
+
+// QueryParamsRequest is the request for the module parameters.
+message QueryParamsRequest {}
+
+// QueryParamsResponse is the pqauth module parameters.
+message QueryParamsResponse {
+  // params are the current module parameters.
+  Params params = 1 [(gogoproto.nullable) = false];
+}

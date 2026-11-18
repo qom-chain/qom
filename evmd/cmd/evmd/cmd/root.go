@@ -3,6 +3,7 @@ package cmd
 import (
 	"errors"
 	"os"
+	"path/filepath"
 
 	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
@@ -15,6 +16,7 @@ import (
 	cosmosevmcmd "github.com/cosmos/evm/client"
 	evmdebug "github.com/cosmos/evm/client/debug"
 	"github.com/cosmos/evm/crypto/hd"
+	"github.com/cosmos/evm/crypto/hybrid"
 	"github.com/cosmos/evm/evmd"
 	"github.com/cosmos/evm/evmd/config"
 	cosmosevmserver "github.com/cosmos/evm/server"
@@ -39,6 +41,7 @@ import (
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/module"
 	sdktestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authcmd "github.com/cosmos/cosmos-sdk/x/auth/client/cli"
@@ -157,6 +160,26 @@ func initCometConfig() *cmtcfg.Config {
 	return cfg
 }
 
+// initCmd is the SDK init command, then enables ML-DSA vote extensions in the
+// genesis it writes. The consensus key algorithm flag is left as Ed25519.
+//
+// The consensus param is consensus.params.abci.vote_extensions_enable_height = 1.
+func initCmd(mbm module.BasicManager, defaultNodeHome string) *cobra.Command {
+	cmd := genutilcli.InitCmd(mbm, defaultNodeHome)
+	orig := cmd.RunE
+	cmd.RunE = func(cmd *cobra.Command, args []string) error {
+		if err := orig(cmd, args); err != nil {
+			return err
+		}
+		home, err := cmd.Flags().GetString(flags.FlagHome)
+		if err != nil {
+			return err
+		}
+		return hybrid.EnableVoteExtensionsInGenesis(filepath.Join(home, "config", "genesis.json"))
+	}
+	return cmd
+}
+
 func initRootCmd(rootCmd *cobra.Command, evmApp *evmd.EVMD) {
 	cfg := sdk.GetConfig()
 	cfg.Seal()
@@ -166,7 +189,7 @@ func initRootCmd(rootCmd *cobra.Command, evmApp *evmd.EVMD) {
 		return newApp(l, d, ao)
 	}
 	rootCmd.AddCommand(
-		genutilcli.InitCmd(evmApp.BasicModuleManager, defaultNodeHome),
+		initCmd(evmApp.BasicModuleManager, defaultNodeHome),
 		genutilcli.Commands(evmApp.TxConfig(), evmApp.BasicModuleManager, defaultNodeHome),
 		cmtcli.NewCompletionCmd(rootCmd, true),
 		evmdebug.Cmd(),

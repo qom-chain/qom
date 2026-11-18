@@ -18,6 +18,7 @@ import (
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 
 	dbm "github.com/cosmos/cosmos-db"
+	evmabci "github.com/cosmos/evm/abci"
 	evmante "github.com/cosmos/evm/ante"
 	antetypes "github.com/cosmos/evm/ante/types"
 	evmencoding "github.com/cosmos/evm/encoding"
@@ -36,6 +37,9 @@ import (
 	feemarketkeeper "github.com/cosmos/evm/x/feemarket/keeper"
 	feemarkettypes "github.com/cosmos/evm/x/feemarket/types"
 	ibccallbackskeeper "github.com/cosmos/evm/x/ibc/callbacks/keeper"
+	"github.com/cosmos/evm/x/pqauth"
+	pqauthkeeper "github.com/cosmos/evm/x/pqauth/keeper"
+	pqauthtypes "github.com/cosmos/evm/x/pqauth/types"
 	"github.com/cosmos/evm/x/vm"
 	evmkeeper "github.com/cosmos/evm/x/vm/keeper"
 	vmrunner "github.com/cosmos/evm/x/vm/runner"
@@ -184,6 +188,7 @@ type EVMD struct {
 	FeeMarketKeeper feemarketkeeper.Keeper
 	EVMKeeper       *evmkeeper.Keeper
 	Erc20Keeper     erc20keeper.Keeper
+	PQAuthKeeper    pqauthkeeper.Keeper
 	EVMMempool      sdkmempool.ExtMempool
 
 	// the module manager
@@ -240,7 +245,7 @@ func NewExampleApp(
 		// ibc keys
 		ibcexported.StoreKey, ibctransfertypes.StoreKey,
 		// Cosmos EVM store keys
-		evmtypes.StoreKey, feemarkettypes.StoreKey, erc20types.StoreKey,
+		evmtypes.StoreKey, feemarkettypes.StoreKey, erc20types.StoreKey, pqauthtypes.StoreKey,
 	)
 	oKeys := storetypes.NewObjectStoreKeys(banktypes.ObjectStoreKey, evmtypes.ObjectKey)
 
@@ -375,6 +380,19 @@ func NewExampleApp(
 		appCodec,
 		app.MsgServiceRouter(),
 		app.AccountKeeper,
+	)
+
+	// Set delegation keepers on the app field before the value is copied into
+	// the module manager. Registration revokes grants only when those keepers
+	// are present, and the vote-extension verifier reads validator keys here.
+	app.PQAuthKeeper = pqauthkeeper.NewKeeper(
+		keys[pqauthtypes.StoreKey],
+		app.AccountKeeper,
+	)
+	app.PQAuthKeeper.SetDelegationKeepers(
+		app.AuthzKeeper,
+		pqauthkeeper.NewFeegrantRevoker(app.FeeGrantKeeper),
+		app.StakingKeeper,
 	)
 
 	// get skipUpgradeHeights from the app options
@@ -583,6 +601,7 @@ func NewExampleApp(
 		vmModule,
 		feemarket.NewAppModule(app.FeeMarketKeeper),
 		erc20.NewAppModule(app.Erc20Keeper, app.AccountKeeper),
+		pqauth.NewAppModule(app.PQAuthKeeper),
 	)
 
 	// BasicModuleManager defines the module BasicManager which is in charge of setting up basic,
@@ -672,7 +691,7 @@ func NewExampleApp(
 
 		ibctransfertypes.ModuleName,
 		genutiltypes.ModuleName, evidencetypes.ModuleName, authz.ModuleName,
-		feegrant.ModuleName, upgradetypes.ModuleName, vestingtypes.ModuleName,
+		feegrant.ModuleName, pqauthtypes.ModuleName, upgradetypes.ModuleName, vestingtypes.ModuleName,
 	}
 	app.ModuleManager.SetOrderInitGenesis(genesisModuleOrder...)
 	app.ModuleManager.SetOrderExportGenesis(genesisModuleOrder...)
@@ -764,6 +783,13 @@ func NewExampleApp(
 		fmt.Fprintln(os.Stderr, err.Error())
 	}
 
+	// Replace the SDK no-op vote handlers before the app is sealed.
+	// An empty extension must be rejected once vote extensions are enabled.
+	// The verifier checks the on-chain validator ML-DSA key, the round, and
+	// the vote type. A socket ABCI client does not deliver round or vote type.
+	app.SetExtendVoteHandler(evmabci.ExtendVoteHandler())
+	app.SetVerifyVoteExtensionHandler(evmabci.VerifyVoteExtensionHandler(app.PQAuthKeeper))
+
 	if loadLatest {
 		if err := app.LoadLatestVersion(); err != nil {
 			logger.Error("error on loading last version", "err", err)
@@ -797,7 +823,7 @@ func (app *EVMD) setAnteHandler(txConfig client.TxConfig, maxGasWanted uint64) {
 		Cdc:                    app.appCodec,
 		AccountKeeper:          app.AccountKeeper,
 		BankKeeper:             app.BankKeeper,
-		ExtensionOptionChecker: antetypes.HasDynamicFeeExtensionOption,
+		ExtensionOptionChecker: antetypes.AcceptsCosmosExtensionOption,
 		EvmKeeper:              app.EVMKeeper,
 		FeegrantKeeper:         app.FeeGrantKeeper,
 		IBCKeeper:              app.IBCKeeper,
@@ -807,6 +833,8 @@ func (app *EVMD) setAnteHandler(txConfig client.TxConfig, maxGasWanted uint64) {
 		MaxTxGasWanted:         maxGasWanted,
 		DynamicFeeChecker:      true,
 		PendingTxListener:      app.onPendingTx,
+		PQAuthKeeper:           app.PQAuthKeeper,
+		AuthzKeeper:            app.AuthzKeeper,
 	}
 	if err := options.Validate(); err != nil {
 		panic(err)

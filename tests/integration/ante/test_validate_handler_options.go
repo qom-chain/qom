@@ -10,7 +10,21 @@ import (
 	"github.com/cosmos/evm/ante"
 	antetypes "github.com/cosmos/evm/ante/types"
 	"github.com/cosmos/evm/testutil/integration/evm/network"
+
+	sdk "github.com/cosmos/cosmos-sdk/types"
 )
+
+// stubPQAuthKeeper satisfies the ante keeper dependency. These cases do not
+// execute a transaction, so no account is registered.
+type stubPQAuthKeeper struct{}
+
+func (stubPQAuthKeeper) GetMLDSAPubKey(sdk.Context, sdk.AccAddress) ([]byte, bool) {
+	return nil, false
+}
+
+func (stubPQAuthKeeper) IsEVMWindowOpen(sdk.Context, sdk.AccAddress) bool { return false }
+
+func (stubPQAuthKeeper) RestrictCosmosPrecompiles(sdk.Context) bool { return false }
 
 //nolint:thelper // RunValidateHandlerOptionsTest is not a helper function; it's an externally called benchmark entry point
 func RunValidateHandlerOptionsTest(t *testing.T, create network.CreateEvmApp, options ...network.ConfigOption) {
@@ -133,6 +147,7 @@ func RunValidateHandlerOptionsTest(t *testing.T, create network.CreateEvmApp, op
 				MaxTxGasWanted:         40000000,
 				DynamicFeeChecker:      true,
 				PendingTxListener:      nil,
+				PQAuthKeeper:           stubPQAuthKeeper{},
 			},
 			false,
 		},
@@ -152,6 +167,7 @@ func RunValidateHandlerOptionsTest(t *testing.T, create network.CreateEvmApp, op
 				MaxTxGasWanted:         40000000,
 				DynamicFeeChecker:      true,
 				PendingTxListener:      func(hash common.Hash) {},
+				PQAuthKeeper:           stubPQAuthKeeper{},
 			},
 			true,
 		},

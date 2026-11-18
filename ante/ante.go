@@ -3,6 +3,7 @@ package ante
 import (
 	anteinterfaces "github.com/cosmos/evm/ante/interfaces"
 	antetypes "github.com/cosmos/evm/ante/types"
+	pqauthtypes "github.com/cosmos/evm/x/pqauth/types"
 	"github.com/cosmos/evm/x/vm/types"
 	"github.com/cosmos/gogoproto/proto"
 	ibckeeper "github.com/cosmos/ibc-go/v11/modules/core/keeper"
@@ -10,6 +11,7 @@ import (
 	errorsmod "cosmossdk.io/errors"
 
 	"github.com/cosmos/cosmos-sdk/codec"
+	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	storetypes "github.com/cosmos/cosmos-sdk/store/v2/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	errortypes "github.com/cosmos/cosmos-sdk/types/errors"
@@ -36,6 +38,11 @@ type HandlerOptions struct {
 	// use dynamic fee checker or the cosmos-sdk default one for native transactions
 	DynamicFeeChecker bool
 	PendingTxListener PendingTxListener
+	// PQAuthKeeper supplies registered ML-DSA-87 keys for Cosmos signers.
+	PQAuthKeeper anteinterfaces.PQAuthKeeper
+	// AuthzKeeper looks up grants so a registered granter cannot be spent
+	// through GenericAuthorization. Nil fails closed for that lookup.
+	AuthzKeeper anteinterfaces.AuthzGrantKeeper
 }
 
 // Validate checks if the keepers are defined
@@ -64,6 +71,9 @@ func (options HandlerOptions) Validate() error {
 	if options.SignModeHandler == nil {
 		return errorsmod.Wrap(errortypes.ErrLogic, "sign mode handler is required for AnteHandler")
 	}
+	if options.PQAuthKeeper == nil {
+		return errorsmod.Wrap(errortypes.ErrLogic, "pqauth keeper is required for AnteHandler")
+	}
 	if options.PendingTxListener == nil {
 		return errorsmod.Wrap(errortypes.ErrLogic, "pending tx listener is required for AnteHandler")
 	}
@@ -90,14 +100,15 @@ func NewAnteHandler(options HandlerOptions) sdk.AnteHandler {
 				case extensionOptionsEthereumTx:
 					// handle as *evmtypes.MsgEthereumTx
 					anteHandler = newMonoEVMAnteHandler(ctx, options)
-				case extensionOptionsDynamicFeeTx:
-					// cosmos-sdk tx with dynamic fee extension
-					anteHandler = newCosmosAnteHandler(ctx, options)
 				default:
-					return ctx, errorsmod.Wrapf(
-						errortypes.ErrUnknownExtensionOptions,
-						"rejecting tx with unsupported extension option: %s", typeURL,
-					)
+					if rejected := unsupportedCosmosExtension(opts, extensionOptionsDynamicFeeTx); rejected != "" {
+						return ctx, errorsmod.Wrapf(
+							errortypes.ErrUnknownExtensionOptions,
+							"rejecting tx with unsupported extension option: %s", rejected,
+						)
+					}
+					// Cosmos tx, possibly carrying a dynamic-fee and/or ML-DSA extension.
+					anteHandler = newCosmosAnteHandler(ctx, options)
 				}
 
 				return anteHandler(ctx, tx, sim)
@@ -114,4 +125,22 @@ func NewAnteHandler(options HandlerOptions) sdk.AnteHandler {
 
 		return anteHandler(ctx, tx, sim)
 	}
+}
+
+// unsupportedCosmosExtension returns the type URL of the first critical
+// extension the Cosmos ante path does not understand. An empty string means
+// every extension is a dynamic fee or ML-DSA signature option.
+func unsupportedCosmosExtension(opts []*codectypes.Any, dynamicFeeURL string) string {
+	for _, opt := range opts {
+		if opt == nil {
+			return "<nil>"
+		}
+		switch opt.GetTypeUrl() {
+		case dynamicFeeURL, pqauthtypes.MLDSAExtensionTypeURL:
+			// Cosmos ante accepts dynamic-fee and ML-DSA signature extensions.
+		default:
+			return opt.GetTypeUrl()
+		}
+	}
+	return ""
 }

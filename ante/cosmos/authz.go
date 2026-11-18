@@ -5,6 +5,8 @@ import (
 
 	errorsmod "cosmossdk.io/errors"
 
+	pqauthtypes "github.com/cosmos/evm/x/pqauth/types"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	errortypes "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/x/authz"
@@ -18,6 +20,18 @@ const maxNestedMsgs = 7
 type AuthzLimiterDecorator struct {
 	// disabledMsgTypes is the type urls of the msgs to block.
 	disabledMsgTypes []string
+}
+
+// PQAuthzDisabledMsgURLs are pqauth messages that must not be granted or
+// executed. Authz runs the inner handler without the ante chain, so a grantee
+// could otherwise register a key or open an EVM window for the granter.
+func PQAuthzDisabledMsgURLs() []string {
+	return []string{
+		sdk.MsgTypeURL(&pqauthtypes.MsgRegisterMLDSAKey{}),
+		sdk.MsgTypeURL(&pqauthtypes.MsgRotateMLDSAKey{}),
+		sdk.MsgTypeURL(&pqauthtypes.MsgRegisterValidatorMLDSAKey{}),
+		sdk.MsgTypeURL(&pqauthtypes.MsgOpenEVMWindow{}),
+	}
 }
 
 // NewAuthzLimiterDecorator creates a decorator to block certain msg types from being granted or executed within authz.

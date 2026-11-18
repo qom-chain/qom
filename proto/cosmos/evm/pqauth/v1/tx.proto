@@ -1,0 +1,125 @@
+syntax = "proto3";
+package cosmos.evm.pqauth.v1;
+
+import "amino/amino.proto";
+import "cosmos/msg/v1/msg.proto";
+import "cosmos_proto/cosmos.proto";
+import "gogoproto/gogo.proto";
+
+option go_package = "github.com/cosmos/evm/x/pqauth/types";
+
+// Msg defines the pqauth Msg service.
+service Msg {
+  option (cosmos.msg.v1.service) = true;
+
+  // RegisterMLDSAKey binds an ML-DSA-87 public key to the signing account.
+  rpc RegisterMLDSAKey(MsgRegisterMLDSAKey) returns (MsgRegisterMLDSAKeyResponse);
+
+  // RotateMLDSAKey replaces an account's ML-DSA-87 public key.
+  rpc RotateMLDSAKey(MsgRotateMLDSAKey) returns (MsgRotateMLDSAKeyResponse);
+
+  // RegisterValidatorMLDSAKey binds an ML-DSA-87 public key to a validator
+  // consensus address.
+  rpc RegisterValidatorMLDSAKey(MsgRegisterValidatorMLDSAKey) returns (MsgRegisterValidatorMLDSAKeyResponse);
+
+  // OpenEVMWindow opens or refreshes the sender's EVM authorisation window.
+  rpc OpenEVMWindow(MsgOpenEVMWindow) returns (MsgOpenEVMWindowResponse);
+}
+
+// MsgRegisterMLDSAKey binds one ML-DSA-87 public key to an existing account.
+// The signer must be that account. The transaction is signed with the
+// account's ethsecp256k1 key, and pop_signature proves possession of pub_key.
+message MsgRegisterMLDSAKey {
+  option (cosmos.msg.v1.signer) = "signer";
+  option (amino.name) = "cosmos/evm/x/pqauth/MsgRegisterMLDSAKey";
+
+  // signer is the existing account that the ML-DSA key is bound to.
+  string signer = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  // pub_key is the 2592-byte ML-DSA-87 public key.
+  bytes pub_key = 2;
+  // pop_signature is the 4627-byte ML-DSA-87 signature over the account
+  // address, chain ID, ethsecp256k1 public key, and pub_key.
+  bytes pop_signature = 3;
+}
+
+// MsgRegisterMLDSAKeyResponse is the response for RegisterMLDSAKey.
+message MsgRegisterMLDSAKeyResponse {}
+
+// MsgRotateMLDSAKey replaces the ML-DSA-87 public key of an account that
+// already has one. old_signature is from the current key and new_signature is
+// from new_pub_key. Both cover the same rotation payload.
+message MsgRotateMLDSAKey {
+  option (cosmos.msg.v1.signer) = "signer";
+  option (amino.name) = "cosmos/evm/x/pqauth/MsgRotateMLDSAKey";
+
+  // signer is the account whose ML-DSA key is replaced.
+  string signer = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  // new_pub_key is the 2592-byte replacement ML-DSA-87 public key.
+  bytes new_pub_key = 2;
+  // old_signature is the current key's signature over the rotation payload.
+  bytes old_signature = 3;
+  // new_signature is the replacement key's signature over the rotation payload.
+  bytes new_signature = 4;
+}
+
+// MsgRotateMLDSAKeyResponse is the response for RotateMLDSAKey.
+message MsgRotateMLDSAKeyResponse {}
+
+// MsgRegisterValidatorMLDSAKey binds an ML-DSA-87 public key to the consensus
+// address of a validator operated by signer. pop_signature proves possession
+// of pub_key. When a key is already stored, old_signature must be that key's
+// signature over the same payload.
+message MsgRegisterValidatorMLDSAKey {
+  option (cosmos.msg.v1.signer) = "signer";
+  option (amino.name) = "cosmos/evm/x/pqauth/MsgRegisterValidatorMLDSAKey";
+
+  // signer is the validator operator account.
+  string signer = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  // consensus_address is the raw CometBFT consensus address.
+  bytes consensus_address = 2;
+  // pub_key is the 2592-byte ML-DSA-87 public key.
+  bytes pub_key = 3;
+  // pop_signature is pub_key's signature over the validator proof-of-possession.
+  bytes pop_signature = 4;
+  // old_signature is required only when a key is already stored for
+  // consensus_address. It is the previous key's signature over the same bytes.
+  bytes old_signature = 5;
+}
+
+// MsgRegisterValidatorMLDSAKeyResponse is the response for RegisterValidatorMLDSAKey.
+message MsgRegisterValidatorMLDSAKeyResponse {}
+
+// MsgOpenEVMWindow opens or refreshes a time-bounded EVM authorisation window
+// for the signing account. The transaction is signed with the account's
+// ethsecp256k1 key. The window lasts a fixed number of blocks from the height
+// at which this message is executed.
+message MsgOpenEVMWindow {
+  option (cosmos.msg.v1.signer) = "signer";
+  option (amino.name) = "cosmos/evm/x/pqauth/MsgOpenEVMWindow";
+
+  // signer is the account whose EVM authorisation window is opened.
+  string signer = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+}
+
+// MsgOpenEVMWindowResponse is the response for OpenEVMWindow.
+message MsgOpenEVMWindowResponse {
+  // expiry_height is the first block height at which the window is closed.
+  int64 expiry_height = 1;
+}
+
+// ExtensionOptionMLDSASig carries ML-DSA-87 signatures for Cosmos transaction
+// signers. Each signature covers the SIGN_MODE_DIRECT SDK sign bytes of the
+// transaction with every signature field in this extension set to empty.
+message ExtensionOptionMLDSASig {
+  // signatures are the per-signer ML-DSA-87 signatures.
+  repeated MLDSASig signatures = 1 [(gogoproto.nullable) = false];
+}
+
+// MLDSASig is one signer's ML-DSA-87 signature over the SDK sign bytes.
+message MLDSASig {
+  // signer is the bech32 account address that produced the signature.
+  string signer = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  // signature is the 4627-byte ML-DSA-87 signature. It is cleared before the
+  // signed payload is rebuilt.
+  bytes signature = 2;
+}

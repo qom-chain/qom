@@ -16,6 +16,7 @@ import (
 	ics02precompile "github.com/cosmos/evm/precompiles/ics02"
 	ics20precompile "github.com/cosmos/evm/precompiles/ics20"
 	"github.com/cosmos/evm/precompiles/p256"
+	"github.com/cosmos/evm/precompiles/pq/dilithium"
 	slashingprecompile "github.com/cosmos/evm/precompiles/slashing"
 	stakingprecompile "github.com/cosmos/evm/precompiles/staking"
 	erc20Keeper "github.com/cosmos/evm/x/erc20/keeper"
@@ -52,6 +53,12 @@ func (s StaticPrecompiles) WithBech32Precompile() StaticPrecompiles {
 		panic(fmt.Errorf("failed to instantiate bech32 precompile: %w", err))
 	}
 	s[bech32Precompile.Address()] = bech32Precompile
+	return s
+}
+
+func (s StaticPrecompiles) WithDilithiumPrecompile() StaticPrecompiles {
+	dilithiumPrecompile := &dilithium.Precompile{}
+	s[dilithiumPrecompile.Address()] = dilithiumPrecompile
 	return s
 }
 
