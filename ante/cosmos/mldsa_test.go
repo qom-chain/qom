@@ -58,6 +58,10 @@ func (k accountKeeper) GetAccount(_ context.Context, addr sdk.AccAddress) sdk.Ac
 	return k.accs[addr.String()]
 }
 
+func (k accountKeeper) GetParams(_ context.Context) authtypes.Params {
+	return authtypes.DefaultParams()
+}
+
 type harness struct {
 	ctx      sdk.Context
 	encCfg   moduletestutil.TestEncodingConfig

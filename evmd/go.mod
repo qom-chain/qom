@@ -10,7 +10,6 @@ require (
 	cosmossdk.io/log/v2 v2.1.0
 	cosmossdk.io/math v1.5.3
 	cosmossdk.io/tools/confix v0.1.2
-	github.com/cloudflare/circl v1.6.3
 	github.com/cometbft/cometbft v0.39.3
 	github.com/cosmos/cosmos-db v1.1.3
 	github.com/cosmos/cosmos-sdk v0.54.3
@@ -89,6 +88,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/chzyer/readline v1.5.1 // indirect
 	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
+	github.com/cloudflare/circl v1.6.3 // indirect
 	github.com/cloudwego/base64x v0.1.7 // indirect
 	github.com/cncf/xds/go v0.0.0-20260202195803-dba9d589def2 // indirect
 	github.com/cockroachdb/errors v1.13.0 // indirect
@@ -374,9 +374,10 @@ replace (
 	// use cosmos fork of keyring
 	github.com/99designs/keyring => github.com/cosmos/keyring v1.2.0
 	github.com/cosmos/evm => ../
-	// In-process CometBFT carries vote round and vote type on the ABCI request.
-	// Socket and gRPC ABCI drop those fields. See scripts/cometbft-voteext.patch.
-	github.com/cometbft/cometbft => ../../src/cometbft-v0.39.3-voteext
+	// Live mainnet (qom_33303-1) runs stock CometBFT v0.39.3: vote extensions are
+	// signed with round 0 / precommit (see abci/vote_extensions.go). The
+	// round-aware variant that needs scripts/cometbft-voteext.patch is kept on
+	// branch qomx/voteext-round-aware for a future coordinated upgrade.
 	// use Cosmos geth fork
 	// branch: release/1.17
 	github.com/ethereum/go-ethereum => github.com/cosmos/go-ethereum v1.17.2-cosmos-0

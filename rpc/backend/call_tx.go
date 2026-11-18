@@ -137,6 +137,13 @@ func (b *Backend) SendRawTransaction(ctx context.Context, data hexutil.Bytes) (r
 		return common.Hash{}, fmt.Errorf("failed to validate transaction: %w", err)
 	}
 
+	// Reject immediately if the sender is ML-DSA registered and its EVM
+	// authorisation window is closed. Otherwise the tx would be accepted here
+	// and silently dropped later by the async mempool recheck.
+	if err := b.checkPQAuthEVMWindow(ctx, ethereumTx.GetFrom()); err != nil {
+		return common.Hash{}, err
+	}
+
 	baseDenom := evmtypes.GetEVMCoinDenom()
 
 	cosmosTx, err := ethereumTx.BuildTx(b.ClientCtx.TxConfig.NewTxBuilder(), baseDenom)
