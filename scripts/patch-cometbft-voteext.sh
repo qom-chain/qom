@@ -1,11 +1,12 @@
 #!/bin/sh
 # Rebuild the local CometBFT module that carries vote round and vote type on
 # the in-process ABCI requests. Socket and gRPC ABCI still drop those fields.
-# The 74MB tree is not committed. Both go.mod files replace cometbft with it.
+# The 74MB tree is not committed. Default dest is ../src-voteext/cometbft-v0.39.3-voteext
+# (relative to the repo root). Both go.mod files replace cometbft with it.
 set -eu
 
 root=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
-dest=${1:-"$root/../src/cometbft-v0.39.3-voteext"}
+dest=${1:-"$root/../src-voteext/cometbft-v0.39.3-voteext"}
 mod=$(go env GOPATH)/pkg/mod/github.com/cometbft/cometbft@v0.39.3
 
 if [ ! -d "$mod" ]; then

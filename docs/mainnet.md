@@ -103,8 +103,10 @@ From the repository root, with `CGO_ENABLED=1` and Go 1.25.9:
 
 ```bash
 # Prepares uncommitted local trees and relative evmd/go.mod replaces:
-#   ../src/cometbft-v0.39.3-voteext   (scripts/cometbft-voteext.patch)
-#   ../src/cosmos-sdk-v0.54.3-qomx    (scripts/cosmos-sdk-v0.54.3-clifix.patch)
+#   ../src-voteext/cometbft-v0.39.3-voteext   (scripts/cometbft-voteext.patch)
+#   ../src-voteext/cosmos-sdk-v0.54.3-qomx    (scripts/cosmos-sdk-v0.54.3-clifix.patch)
+# The src-voteext directory name is recorded in the binary and is required
+# to reproduce the live mainnet evmd hash.
 sh scripts/prepare-evmd-build.sh
 cd evmd && go build -trimpath -buildvcs=false -ldflags="-s -w" ./cmd/evmd
 git checkout -- go.mod go.sum   # do not commit the local replaces

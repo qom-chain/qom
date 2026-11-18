@@ -9,12 +9,14 @@
 # without it are consensus-compatible. Live mainnet evmd is built with it.
 #
 # Usage: scripts/apply-cosmos-sdk-clifix.sh [dest-dir]
-#   dest-dir defaults to ../src/cosmos-sdk-v0.54.3-qomx (relative to repo root),
-#   mirroring scripts/patch-cometbft-voteext.sh. The tree is not committed.
+#   dest-dir defaults to ../src-voteext/cosmos-sdk-v0.54.3-qomx (relative to
+#   the repo root), matching scripts/patch-cometbft-voteext.sh. The tree is
+#   not committed. The src-voteext directory name is recorded in evmd build
+#   info and is required to reproduce the live mainnet binary hash.
 set -eu
 
 root=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
-dest=${1:-"$root/../src/cosmos-sdk-v0.54.3-qomx"}
+dest=${1:-"$root/../src-voteext/cosmos-sdk-v0.54.3-qomx"}
 patchfile="$root/scripts/cosmos-sdk-v0.54.3-clifix.patch"
 version=v0.54.3
 

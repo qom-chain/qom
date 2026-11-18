@@ -51,7 +51,8 @@ Recommended steps:
    missing or mismatched bound ML-DSA key files must refuse to start).
 2. Build with `scripts/prepare-evmd-build.sh` and
    `cd evmd && go build -trimpath -buildvcs=false -ldflags="-s -w" ./cmd/evmd`.
-   Record the sha256.
+   The prepare script writes `../src-voteext/...` trees so the binary
+   hash matches the live mainnet build. Record the sha256.
 3. Copy the running `evmd` to a dated backup. Do not overwrite earlier
    backups.
 4. Stop the node, install the new binary, start the node.
