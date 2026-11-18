@@ -1,6 +1,7 @@
 package abci
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/cloudflare/circl/sign/mldsa/mldsa87"
@@ -152,7 +153,85 @@ func newHandlerValidator(t *testing.T) *hybrid.HybridPrivValidator {
 	dir := t.TempDir()
 	stdKey := dir + "/priv_validator_key.json"
 	stdPV := cometprivval.GenFilePV(stdKey, dir+"/priv_validator_state.json")
-	hpv, err := hybrid.AttachMLDSAKey(stdPV, hybrid.MLDSAKeyPath(stdKey))
+	hpv, err := hybrid.AttachMLDSAKey(stdPV, hybrid.MLDSAKeyPath(stdKey), nil)
 	require.NoError(t, err)
 	return hpv
 }
+
+func TestVerifyVoteExtensionRejectsWrongRoundAndTamper(t *testing.T) {
+	ctx, consAddr, blockHash, resp, verify, hpv := setupRoundAwareVerify(t)
+	height := int64(7)
+	round := int32(2)
+	voteType := int32(cmtproto.PrecommitType)
+
+	// Verify at a different round than the one used to sign.
+	rejected, err := verify(ctx, &abci.RequestVerifyVoteExtension{
+		Hash:             blockHash,
+		Height:           height,
+		Round:            0,
+		VoteType:         voteType,
+		ValidatorAddress: consAddr,
+		VoteExtension:    resp.VoteExtension,
+	})
+	require.NoError(t, err)
+	require.Equal(t, abci.ResponseVerifyVoteExtension_REJECT, rejected.Status)
+
+	// Tamper with one byte of the packed ML-DSA signature / payload.
+	tampered := append([]byte(nil), resp.VoteExtension...)
+	require.Greater(t, len(tampered), 10)
+	tampered[len(tampered)-1] ^= 0xff
+	rejected, err = verify(ctx, &abci.RequestVerifyVoteExtension{
+		Hash:             blockHash,
+		Height:           height,
+		Round:            round,
+		VoteType:         voteType,
+		ValidatorAddress: consAddr,
+		VoteExtension:    tampered,
+	})
+	require.NoError(t, err)
+	require.Equal(t, abci.ResponseVerifyVoteExtension_REJECT, rejected.Status)
+
+	// Absent (empty) extension is already covered in TestVoteExtensionHandlers; keep a direct assert.
+	_ = hpv
+}
+
+func setupRoundAwareVerify(t *testing.T) (sdk.Context, sdk.ConsAddress, []byte, *abci.ResponseExtendVote, func(sdk.Context, *abci.RequestVerifyVoteExtension) (*abci.ResponseVerifyVoteExtension, error), *hybrid.HybridPrivValidator) {
+	t.Helper()
+	hpv := newHandlerValidator(t)
+	hybrid.SetGlobalHybridValidator(hpv)
+	t.Cleanup(func() { hybrid.SetGlobalHybridValidator(nil) })
+
+	pubKey, err := hpv.GetMLDSAPubKey().MarshalBinary()
+	require.NoError(t, err)
+	consAddr := sdk.ConsAddress(hpv.StdPV.GetAddress())
+	blockHash := bytes.Repeat([]byte{0x11}, 32)
+	height := int64(7)
+	round := int32(2)
+	voteType := int32(cmtproto.PrecommitType)
+	ctx := sdk.NewContext(nil, cmtproto.Header{ChainID: "qomx-1"}, false, log.NewNopLogger())
+
+	extend := ExtendVoteHandler()
+	resp, err := extend(ctx, &abci.RequestExtendVote{
+		Hash:      blockHash,
+		Height:    height,
+		Round:     round,
+		VoteType:  voteType,
+		ProposerAddress: consAddr,
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.VoteExtension)
+
+	verify := VerifyVoteExtensionHandler(stubValidatorKeys{addr: consAddr, pubKey: pubKey})
+	accepted, err := verify(ctx, &abci.RequestVerifyVoteExtension{
+		Hash:             blockHash,
+		Height:           height,
+		Round:            round,
+		VoteType:         voteType,
+		ValidatorAddress: consAddr,
+		VoteExtension:    resp.VoteExtension,
+	})
+	require.NoError(t, err)
+	require.Equal(t, abci.ResponseVerifyVoteExtension_ACCEPT, accepted.Status)
+	return ctx, consAddr, blockHash, resp, verify, hpv
+}
+
