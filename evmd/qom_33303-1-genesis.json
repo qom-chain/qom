@@ -1,0 +1,438 @@
+{
+  "app_hash": null,
+  "app_name": "evmd",
+  "app_state": {
+    "07-tendermint": null,
+    "auth": {
+      "accounts": [
+        {
+          "@type": "/cosmos.auth.v1beta1.BaseAccount",
+          "account_number": "0",
+          "address": "cosmos1l8pmte35zmkeundkvxcs6ehphtkxkmyrk9q4k8",
+          "pub_key": null,
+          "sequence": "0"
+        },
+        {
+          "@type": "/cosmos.auth.v1beta1.BaseAccount",
+          "account_number": "1",
+          "address": "cosmos18pd7jdtsdqrs8gfdqsrw656d43a0vq0mzsm9q7",
+          "pub_key": null,
+          "sequence": "0"
+        }
+      ],
+      "params": {
+        "max_memo_characters": "256",
+        "sig_verify_cost_ed25519": "590",
+        "sig_verify_cost_secp256k1": "1000",
+        "tx_sig_limit": "7",
+        "tx_size_cost_per_byte": "10"
+      }
+    },
+    "authz": {
+      "authorization": []
+    },
+    "bank": {
+      "balances": [
+        {
+          "address": "cosmos18pd7jdtsdqrs8gfdqsrw656d43a0vq0mzsm9q7",
+          "coins": [
+            {
+              "amount": "1000000000000000000000000",
+              "denom": "aqomx"
+            }
+          ]
+        },
+        {
+          "address": "cosmos1l8pmte35zmkeundkvxcs6ehphtkxkmyrk9q4k8",
+          "coins": [
+            {
+              "amount": "199000000000000000000000000",
+              "denom": "aqomx"
+            }
+          ]
+        }
+      ],
+      "denom_metadata": [
+        {
+          "base": "aqomx",
+          "denom_units": [
+            {
+              "aliases": [
+                "attoqomx"
+              ],
+              "denom": "aqomx",
+              "exponent": 0
+            },
+            {
+              "aliases": [],
+              "denom": "qomx",
+              "exponent": 18
+            }
+          ],
+          "description": "Native gas token of the QOM chain. 1 QOMX = 10^18 aqomx.",
+          "display": "qomx",
+          "name": "QOMX",
+          "symbol": "QOMX",
+          "uri": "",
+          "uri_hash": ""
+        }
+      ],
+      "params": {
+        "default_send_enabled": true,
+        "send_enabled": []
+      },
+      "send_enabled": [],
+      "supply": [
+        {
+          "amount": "200000000000000000000000000",
+          "denom": "aqomx"
+        }
+      ]
+    },
+    "consensus": null,
+    "distribution": {
+      "delegator_starting_infos": [],
+      "delegator_withdraw_infos": [],
+      "fee_pool": {
+        "community_pool": []
+      },
+      "outstanding_rewards": [],
+      "params": {
+        "base_proposer_reward": "0.000000000000000000",
+        "bonus_proposer_reward": "0.000000000000000000",
+        "community_tax": "0.020000000000000000",
+        "withdraw_addr_enabled": true
+      },
+      "previous_proposer": "",
+      "validator_accumulated_commissions": [],
+      "validator_current_rewards": [],
+      "validator_historical_rewards": [],
+      "validator_slash_events": []
+    },
+    "erc20": {
+      "allowances": [],
+      "dynamic_precompiles": [],
+      "native_precompiles": [
+        "0xD4949664cD82660AaE99bEdc034a0deA8A0bd517"
+      ],
+      "params": {
+        "enable_erc20": true,
+        "permissionless_registration": true
+      },
+      "token_pairs": [
+        {
+          "contract_owner": "OWNER_MODULE",
+          "denom": "aqomx",
+          "enabled": true,
+          "erc20_address": "0xD4949664cD82660AaE99bEdc034a0deA8A0bd517"
+        }
+      ]
+    },
+    "evidence": {
+      "evidence": []
+    },
+    "evm": {
+      "accounts": [],
+      "params": {
+        "access_control": {
+          "call": {
+            "access_control_list": [],
+            "access_type": "ACCESS_TYPE_PERMISSIONLESS"
+          },
+          "create": {
+            "access_control_list": [],
+            "access_type": "ACCESS_TYPE_PERMISSIONLESS"
+          }
+        },
+        "active_static_precompiles": [
+          "0x0000000000000000000000000000000000000100",
+          "0x0000000000000000000000000000000000000400",
+          "0x0000000000000000000000000000000000000401",
+          "0x0000000000000000000000000000000000000800",
+          "0x0000000000000000000000000000000000000801",
+          "0x0000000000000000000000000000000000000802",
+          "0x0000000000000000000000000000000000000803",
+          "0x0000000000000000000000000000000000000804",
+          "0x0000000000000000000000000000000000000805",
+          "0x0000000000000000000000000000000000000806",
+          "0x0000000000000000000000000000000000000807"
+        ],
+        "evm_channels": [],
+        "evm_denom": "aqomx",
+        "extended_denom_options": {
+          "extended_denom": "aqomx"
+        },
+        "extra_eips": [],
+        "history_serve_window": "8192"
+      },
+      "preinstalls": []
+    },
+    "feegrant": {
+      "allowances": []
+    },
+    "feemarket": {
+      "block_gas": "0",
+      "params": {
+        "base_fee": "47619047619048.000000000000000000",
+        "base_fee_change_denominator": 8,
+        "elasticity_multiplier": 2,
+        "enable_height": "0",
+        "min_gas_multiplier": "0.500000000000000000",
+        "min_gas_price": "47619047619048.000000000000000000",
+        "no_base_fee": false
+      }
+    },
+    "genutil": {
+      "gen_txs": [
+        {
+          "auth_info": {
+            "fee": {
+              "amount": [
+                {
+                  "amount": "23809523809524000000",
+                  "denom": "aqomx"
+                }
+              ],
+              "gas_limit": "500000",
+              "granter": "",
+              "payer": ""
+            },
+            "signer_infos": [
+              {
+                "mode_info": {
+                  "single": {
+                    "mode": "SIGN_MODE_DIRECT"
+                  }
+                },
+                "public_key": {
+                  "@type": "/cosmos.evm.crypto.v1.ethsecp256k1.PubKey",
+                  "key": "AqFIl9KdWjjbYGZ0yXlLRuuhhYTEFLMT+oOL90l2tThR"
+                },
+                "sequence": "0"
+              }
+            ],
+            "tip": null
+          },
+          "body": {
+            "extension_options": [],
+            "memo": "25c9967d869feb5340d85c01cfa16ff1d1591632@0.0.0.0:26656",
+            "messages": [
+              {
+                "@type": "/cosmos.staking.v1beta1.MsgCreateValidator",
+                "commission": {
+                  "max_change_rate": "0.010000000000000000",
+                  "max_rate": "0.200000000000000000",
+                  "rate": "0.100000000000000000"
+                },
+                "delegator_address": "",
+                "description": {
+                  "details": "",
+                  "identity": "",
+                  "moniker": "QOM",
+                  "security_contact": "",
+                  "website": ""
+                },
+                "min_self_delegation": "1",
+                "pubkey": {
+                  "@type": "/cosmos.crypto.ed25519.PubKey",
+                  "key": "lCEu0UBPE0/Vn2WQFlDYzsYjO1v4Ku+r+JhOAQG8JDs="
+                },
+                "validator_address": "cosmosvaloper18pd7jdtsdqrs8gfdqsrw656d43a0vq0m8y0svd",
+                "value": {
+                  "amount": "999876190476190476000000",
+                  "denom": "aqomx"
+                }
+              }
+            ],
+            "non_critical_extension_options": [],
+            "timeout_height": "0",
+            "timeout_timestamp": null,
+            "unordered": false
+          },
+          "signatures": [
+            "sDCb9rViNJyv2Nb3pOoaXfReMDXsrPh5OyI6vuVxNYELTRaC8GOb2/FGKGrMH59sTt2fB08NYHbX7zUD8s/FngA="
+          ]
+        }
+      ]
+    },
+    "gov": {
+      "constitution": "",
+      "deposit_params": null,
+      "deposits": [],
+      "params": {
+        "burn_proposal_deposit_prevote": false,
+        "burn_vote_quorum": false,
+        "burn_vote_veto": true,
+        "expedited_min_deposit": [
+          {
+            "amount": "50000000000000000000",
+            "denom": "aqomx"
+          }
+        ],
+        "expedited_threshold": "0.667000000000000000",
+        "expedited_voting_period": "86400s",
+        "max_deposit_period": "172800s",
+        "min_deposit": [
+          {
+            "amount": "10000000000000000000",
+            "denom": "aqomx"
+          }
+        ],
+        "min_deposit_ratio": "0.010000000000000000",
+        "min_initial_deposit_ratio": "0.000000000000000000",
+        "proposal_cancel_dest": "",
+        "proposal_cancel_ratio": "0.500000000000000000",
+        "quorum": "0.334000000000000000",
+        "threshold": "0.500000000000000000",
+        "veto_threshold": "0.334000000000000000",
+        "voting_period": "172800s"
+      },
+      "proposals": [],
+      "starting_proposal_id": "1",
+      "tally_params": null,
+      "votes": [],
+      "voting_params": null
+    },
+    "ibc": {
+      "channel_genesis": {
+        "ack_sequences": [],
+        "acknowledgements": [],
+        "channels": [],
+        "commitments": [],
+        "next_channel_sequence": "0",
+        "receipts": [],
+        "recv_sequences": [],
+        "send_sequences": []
+      },
+      "channel_v2_genesis": {
+        "acknowledgements": [],
+        "async_packets": [],
+        "commitments": [],
+        "receipts": [],
+        "send_sequences": []
+      },
+      "client_genesis": {
+        "clients": [],
+        "clients_consensus": [],
+        "clients_metadata": [],
+        "create_localhost": false,
+        "next_client_sequence": "0",
+        "params": {
+          "allowed_clients": [
+            "*"
+          ]
+        }
+      },
+      "client_v2_genesis": {
+        "counterparty_infos": []
+      },
+      "connection_genesis": {
+        "client_connection_paths": [],
+        "connections": [],
+        "next_connection_sequence": "0",
+        "params": {
+          "max_expected_time_per_block": "30000000000"
+        }
+      }
+    },
+    "mint": {
+      "minter": {
+        "annual_provisions": "0.000000000000000000",
+        "inflation": "0.000000000000000000"
+      },
+      "params": {
+        "blocks_per_year": "6311520",
+        "goal_bonded": "0.670000000000000000",
+        "inflation_max": "0.000000000000000000",
+        "inflation_min": "0.000000000000000000",
+        "inflation_rate_change": "0.000000000000000000",
+        "max_supply": "200000000000000000000000000",
+        "mint_denom": "aqomx"
+      }
+    },
+    "pqauth": {
+      "keys": [],
+      "params": {
+        "evm_window_duration": "1000",
+        "restrict_cosmos_precompiles": false
+      },
+      "validator_keys": [
+        {
+          "consensus_address": "+2S0TpX8gTxMdjLIPBjcHJq5kmI=",
+          "pub_key": "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"
+        }
+      ],
+      "windows": []
+    },
+    "slashing": {
+      "missed_blocks": [],
+      "params": {
+        "downtime_jail_duration": "600s",
+        "min_signed_per_window": "0.500000000000000000",
+        "signed_blocks_window": "100",
+        "slash_fraction_double_sign": "0.050000000000000000",
+        "slash_fraction_downtime": "0.010000000000000000"
+      },
+      "signing_infos": []
+    },
+    "staking": {
+      "delegations": [],
+      "exported": false,
+      "last_total_power": "0",
+      "last_validator_powers": [],
+      "params": {
+        "bond_denom": "aqomx",
+        "historical_entries": 10000,
+        "max_entries": 7,
+        "max_validators": 100,
+        "min_commission_rate": "0.000000000000000000",
+        "unbonding_time": "1209600s"
+      },
+      "redelegations": [],
+      "unbonding_delegations": [],
+      "validators": []
+    },
+    "transfer": {
+      "denoms": [],
+      "params": {
+        "receive_enabled": true,
+        "send_enabled": true
+      },
+      "port_id": "transfer",
+      "total_escrowed": []
+    },
+    "upgrade": {},
+    "vesting": {}
+  },
+  "app_version": "",
+  "chain_id": "qom_33303-1",
+  "consensus": {
+    "params": {
+      "abci": {
+        "vote_extensions_enable_height": "1"
+      },
+      "authority": {
+        "authority": ""
+      },
+      "block": {
+        "max_bytes": "22020096",
+        "max_gas": "30000000"
+      },
+      "evidence": {
+        "max_age_duration": "172800000000000",
+        "max_age_num_blocks": "100000",
+        "max_bytes": "1048576"
+      },
+      "validator": {
+        "pub_key_types": [
+          "ed25519"
+        ]
+      },
+      "version": {
+        "app": "0"
+      }
+    }
+  },
+  "genesis_time": "2026-11-17T02:44:49Z",
+  "initial_height": 1
+}
