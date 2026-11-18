@@ -34,7 +34,7 @@ func ExtendVoteHandler() sdk.ExtendVoteHandler {
 			return nil, fmt.Errorf("hybrid validator is not loaded; cannot sign ML-DSA vote extension")
 		}
 
-		extension, err := hpv.SignVoteExtension(ctx.ChainID(), req.Height, int32(0), int32(2), req.Hash)
+		extension, err := hpv.SignVoteExtension(ctx.ChainID(), req.Height, req.Round, req.VoteType, req.Hash)
 		if err != nil {
 			return nil, err
 		}
@@ -69,15 +69,15 @@ func VerifyVoteExtensionHandler(keys ValidatorMLDSAKeys) sdk.VerifyVoteExtension
 		err := hybrid.VerifyVoteExtensionSignature(
 			ctx.ChainID(),
 			req.Height,
-			int32(0),
-			int32(2),
+			req.Round,
+			req.VoteType,
 			req.Hash,
 			req.ValidatorAddress,
 			req.VoteExtension,
 			expected,
 		)
 		if err != nil {
-			return reject(fmt.Errorf("validator %X height %d round %d: %w", req.ValidatorAddress, req.Height, int32(0), err))
+			return reject(fmt.Errorf("validator %X height %d round %d: %w", req.ValidatorAddress, req.Height, req.Round, err))
 		}
 
 		return &abci.ResponseVerifyVoteExtension{
