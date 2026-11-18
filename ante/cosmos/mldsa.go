@@ -39,10 +39,44 @@ import (
 // block limit, that is at most 40 ML-DSA verifications per block.
 const MLDSA87VerifyGas uint64 = 250_000
 
-// mldsaExtOverhead approximates the proto wrapper bytes around the packed
-// ML-DSA-87 signature in the critical-tx extension, added to the signature
-// size when charging simulate-mode tx-size gas.
-const mldsaExtOverhead = 30
+// protoVarintSize is the number of bytes needed to encode x as a protobuf varint.
+func protoVarintSize(x uint64) int {
+	n := 1
+	for x >= 0x80 {
+		x >>= 7
+		n++
+	}
+	return n
+}
+
+// SimulatedMLDSAExtensionTxBytes is the protobuf size of a TxBody
+// extension_options Any that carries dummy ML-DSA-87 signatures for signers,
+// matching the extension SignHybrid attaches. --gas auto builds a simulation
+// transaction before that extension exists, so the ante decorator charges
+// this many bytes of tx-size gas in simulate mode.
+func SimulatedMLDSAExtensionTxBytes(signers []sdk.AccAddress) (uint64, error) {
+	if len(signers) == 0 {
+		return 0, nil
+	}
+	sigs := make([]pqauthtypes.MLDSASig, 0, len(signers))
+	for _, a := range signers {
+		sigs = append(sigs, pqauthtypes.MLDSASig{
+			Signer:    a.String(),
+			Signature: make([]byte, pqauthtypes.MLDSA87SignatureSize),
+		})
+	}
+	packed, err := codectypes.NewAnyWithValue(&pqauthtypes.ExtensionOptionMLDSASig{Signatures: sigs})
+	if err != nil {
+		return 0, err
+	}
+	anyBz, err := packed.Marshal()
+	if err != nil {
+		return 0, err
+	}
+	// TxBody.extension_options is field 5, wire type 2 (length-delimited):
+	// 1-byte tag + varint(len(anyBz)) + anyBz.
+	return uint64(1 + protoVarintSize(uint64(len(anyBz))) + len(anyBz)), nil
+}
 
 // accountKeeper is the account lookup used to rebuild SDK signer data.
 type accountKeeper interface {
@@ -93,11 +127,11 @@ func (d MLDSASigDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool,
 	if simulate {
 		// During gas estimation the tx carries no ML-DSA-87 extension (the CLI
 		// computes gas before SignHybrid attaches it), so the real verify path
-		// below is skipped and --gas auto under-estimates any already-registered
-		// account. Mirror the SDK placeholder approach: charge, per registered
-		// signer/principal, the same MLDSA87VerifyGas the DeliverTx path consumes
-		// plus the tx-size gas for the one 4627-byte ML-DSA signature the real tx
-		// will carry for that account. The simulate==false path is unchanged.
+		// below is skipped. Charge, per registered signer/principal, the same
+		// MLDSA87VerifyGas the DeliverTx path consumes, plus the exact
+		// protobuf size of the extension SignHybrid will attach (type URL,
+		// signer bech32, 4627-byte signature, and TxBody field tags) rather
+		// than a 4627+30 placeholder. The simulate==false path is unchanged.
 		sigTx, ok := tx.(authsigning.Tx)
 		if !ok {
 			return next(ctx, tx, simulate)
@@ -106,23 +140,37 @@ func (d MLDSASigDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool,
 		if err != nil {
 			return ctx, err
 		}
-		sizePerSig := d.ak.GetParams(ctx).TxSizeCostPerByte * (pqauthtypes.MLDSA87SignatureSize + mldsaExtOverhead)
 		outer := make(map[string]struct{}, len(signers))
-		charge := func(a sdk.AccAddress) {
+		var registered []sdk.AccAddress
+		seen := make(map[string]struct{})
+		add := func(a sdk.AccAddress) {
+			if _, exists := seen[string(a)]; exists {
+				return
+			}
 			if _, reg := d.pq.GetMLDSAPubKey(ctx, a); reg {
-				ctx.GasMeter().ConsumeGas(MLDSA87VerifyGas, "simulate: mldsa87 verify")
-				ctx.GasMeter().ConsumeGas(sizePerSig, "simulate: mldsa87 sig size")
+				seen[string(a)] = struct{}{}
+				registered = append(registered, a)
 			}
 		}
 		for _, s := range signers {
 			a := sdk.AccAddress(s)
 			outer[string(a)] = struct{}{}
-			charge(a)
+			add(a)
 		}
 		if extras, err := d.extraPrincipals(ctx, tx, outer); err == nil {
 			for _, a := range extras {
-				charge(a)
+				add(a)
 			}
+		}
+		for range registered {
+			ctx.GasMeter().ConsumeGas(MLDSA87VerifyGas, "simulate: mldsa87 verify")
+		}
+		if len(registered) > 0 {
+			extBytes, err := SimulatedMLDSAExtensionTxBytes(registered)
+			if err != nil {
+				return ctx, err
+			}
+			ctx.GasMeter().ConsumeGas(d.ak.GetParams(ctx).TxSizeCostPerByte*extBytes, "simulate: mldsa87 extension size")
 		}
 		return next(ctx, tx, simulate)
 	}

@@ -1,6 +1,7 @@
 #!/bin/sh
 # Build a local Cosmos SDK v0.54.3 module carrying the QOMX client-only CLI fix
-# (--gas auto / --dry-run key resolution and fee-aware gas estimation) and point
+# (--gas auto / --dry-run key resolution, default gas-adjustment 1.1, JSON dry-run
+# output, fee-aware gas estimation, and updated dry-run help) and point
 # evmd/go.mod at it with a RELATIVE replace directive.
 #
 # The patch only touches client/ code (CLI tx building and simulation). It does

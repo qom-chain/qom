@@ -444,3 +444,20 @@ func TestRegisteredFeeGranterRequiresMLDSA(t *testing.T) {
 	require.True(t, called)
 	require.Equal(t, 2*cosmosante.MLDSA87VerifyGas, meter.GasConsumed())
 }
+
+func TestSimulatedMLDSAExtensionTxBytes(t *testing.T) {
+	// A typical cosmos bech32 address is 45 characters. The packed
+	// ExtensionOptionMLDSASig Any plus the TxBody field tag is several
+	// hundred bytes larger than the old 4627+30 placeholder.
+	addr, err := sdk.AccAddressFromBech32("cosmos1v4tyxue9s23w2lmluuvv0tw0kwjwdcynkmsf7v")
+	require.NoError(t, err)
+	n, err := cosmosante.SimulatedMLDSAExtensionTxBytes([]sdk.AccAddress{addr})
+	require.NoError(t, err)
+	require.Greater(t, n, uint64(pqauthtypes.MLDSA87SignatureSize+30))
+	require.Greater(t, n, uint64(4700))
+	require.Less(t, n, uint64(5100))
+
+	zero, err := cosmosante.SimulatedMLDSAExtensionTxBytes(nil)
+	require.NoError(t, err)
+	require.Equal(t, uint64(0), zero)
+}

@@ -360,6 +360,33 @@ granter cannot complete a feegrant or authz spend from this CLI. Registration
 also deletes authz grants and fee allowances where the account is the granter.
 GenericAuthorization is rejected for a registered account.
 
+## Broadcasting and gas
+
+`--gas auto` multiplies the simulated gas by `--gas-adjustment` (default
+1.1) to set the transaction gas limit. Setting `--gas` to a number ignores
+the adjustment. `--dry-run --output json` prints `{"gas_estimate":N}`. A
+local key name or a bech32 address may be used with `--dry-run`.
+
+`--broadcast-mode sync` (the default) returns when the node accepts the
+transaction into the mempool. The reply has `height` 0, `gas_wanted` 0,
+and `gas_used` 0 even when CheckTx succeeded (`code` 0). That is not
+inclusion. Query the result with:
+
+```bash
+evmd q tx <hash> --home "$HOME_DIR"
+```
+
+Repeat until the transaction is in a block. The included result has the
+real height, `gas_wanted`, and `gas_used`.
+
+Cosmos transactions charge the fee declared at submission (`gas` ×
+`--gas-prices`, or the `--fees` amount). Unused gas is not refunded. EVM
+transactions refund unused gas. If the Cosmos gas limit is too low, the
+transaction fails with out-of-gas, still pays the full declared fee, and
+still consumes the account sequence. Accurate `--gas auto` estimates
+matter because a slightly short limit can cost a full fee with no state
+change.
+
 ## Gas price
 
 Set every Cosmos transaction to `--gas-prices 47619047619048aqomx` or higher.
