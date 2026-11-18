@@ -21,6 +21,7 @@ import (
 	signingtypes "github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authante "github.com/cosmos/cosmos-sdk/x/auth/ante"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	txsigning "github.com/cosmos/cosmos-sdk/x/tx/signing"
 )
 
@@ -38,9 +39,15 @@ import (
 // block limit, that is at most 40 ML-DSA verifications per block.
 const MLDSA87VerifyGas uint64 = 250_000
 
+// mldsaExtOverhead approximates the proto wrapper bytes around the packed
+// ML-DSA-87 signature in the critical-tx extension, added to the signature
+// size when charging simulate-mode tx-size gas.
+const mldsaExtOverhead = 30
+
 // accountKeeper is the account lookup used to rebuild SDK signer data.
 type accountKeeper interface {
 	GetAccount(ctx context.Context, addr sdk.AccAddress) sdk.AccountI
+	GetParams(ctx context.Context) authtypes.Params
 }
 
 // MLDSASigDecorator requires a valid ML-DSA-87 signature, carried in
@@ -80,7 +87,43 @@ func (d MLDSASigDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool,
 	if err := d.rejectAuthzBypass(ctx, tx); err != nil {
 		return ctx, err
 	}
-	if simulate || ctx.IsReCheckTx() || !ctx.IsSigverifyTx() {
+	if ctx.IsReCheckTx() || !ctx.IsSigverifyTx() {
+		return next(ctx, tx, simulate)
+	}
+	if simulate {
+		// During gas estimation the tx carries no ML-DSA-87 extension (the CLI
+		// computes gas before SignHybrid attaches it), so the real verify path
+		// below is skipped and --gas auto under-estimates any already-registered
+		// account. Mirror the SDK placeholder approach: charge, per registered
+		// signer/principal, the same MLDSA87VerifyGas the DeliverTx path consumes
+		// plus the tx-size gas for the one 4627-byte ML-DSA signature the real tx
+		// will carry for that account. The simulate==false path is unchanged.
+		sigTx, ok := tx.(authsigning.Tx)
+		if !ok {
+			return next(ctx, tx, simulate)
+		}
+		signers, err := sigTx.GetSigners()
+		if err != nil {
+			return ctx, err
+		}
+		sizePerSig := d.ak.GetParams(ctx).TxSizeCostPerByte * (pqauthtypes.MLDSA87SignatureSize + mldsaExtOverhead)
+		outer := make(map[string]struct{}, len(signers))
+		charge := func(a sdk.AccAddress) {
+			if _, reg := d.pq.GetMLDSAPubKey(ctx, a); reg {
+				ctx.GasMeter().ConsumeGas(MLDSA87VerifyGas, "simulate: mldsa87 verify")
+				ctx.GasMeter().ConsumeGas(sizePerSig, "simulate: mldsa87 sig size")
+			}
+		}
+		for _, s := range signers {
+			a := sdk.AccAddress(s)
+			outer[string(a)] = struct{}{}
+			charge(a)
+		}
+		if extras, err := d.extraPrincipals(ctx, tx, outer); err == nil {
+			for _, a := range extras {
+				charge(a)
+			}
+		}
 		return next(ctx, tx, simulate)
 	}
 
