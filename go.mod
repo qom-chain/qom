@@ -11,6 +11,7 @@ require (
 	cosmossdk.io/tools/confix v0.1.2
 	github.com/btcsuite/btcd v0.24.2
 	github.com/btcsuite/btcd/btcutil v1.1.6
+	github.com/cloudflare/circl v1.6.3
 	github.com/cometbft/cometbft v0.39.3
 	github.com/cosmos/cosmos-db v1.1.3
 	github.com/cosmos/cosmos-proto v1.0.0-beta.5
@@ -60,6 +61,13 @@ require (
 	google.golang.org/grpc v1.80.0
 	google.golang.org/protobuf v1.36.11
 	sigs.k8s.io/yaml v1.6.0
+)
+
+require (
+	cosmossdk.io/client/v2 v2.0.0-beta.10.0.20260227212600-39d4711b8970 // indirect
+	github.com/dlclark/regexp2 v1.11.4 // indirect
+	github.com/dop251/goja v0.0.0-20260311135729-065cd970411c // indirect
+	github.com/go-sourcemap/sourcemap v2.1.4+incompatible // indirect
 )
 
 require (
@@ -131,6 +139,7 @@ require (
 	github.com/consensys/gnark-crypto v0.18.1 // indirect
 	github.com/cosmos/btcutil v1.0.5 // indirect
 	github.com/cosmos/btree v1.0.0 // indirect
+	github.com/cosmos/evm/evmd v0.0.0-00010101000000-000000000000
 	github.com/cosmos/gogogateway v1.2.0 // indirect
 	github.com/cosmos/iavl v1.2.8 // indirect
 	github.com/cosmos/ics23/go v0.11.0 // indirect
@@ -303,7 +312,7 @@ require (
 	github.com/sirupsen/logrus v1.9.4 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/spf13/afero v1.15.0 // indirect
-	github.com/spf13/pflag v1.0.10 // indirect
+	github.com/spf13/pflag v1.0.10
 	github.com/spiffe/go-spiffe/v2 v2.6.0 // indirect
 	github.com/stretchr/objx v0.5.3 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
@@ -381,7 +390,8 @@ require (
 replace (
 	// use cosmos fork of keyring
 	github.com/99designs/keyring => github.com/cosmos/keyring v1.2.0
-	// In-process CometBFT with vote-extension round and vote type. See scripts/patch-cometbft-voteext.sh.
+	// In-process CometBFT carries vote round and vote type on the ABCI request.
+	// Socket and gRPC ABCI drop those fields. See scripts/cometbft-voteext.patch.
 	github.com/cometbft/cometbft => ../src/cometbft-v0.39.3-voteext
 	// use Cosmos geth fork
 	// branch: release/1.17
@@ -395,3 +405,5 @@ replace (
 )
 
 retract v0.4.0
+
+replace github.com/cosmos/evm/evmd => ./evmd
