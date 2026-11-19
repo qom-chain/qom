@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	ethtypes "github.com/ethereum/go-ethereum/core/types"
+
 	pqauthtypes "github.com/cosmos/evm/x/pqauth/types"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -57,4 +59,24 @@ func (b *Backend) checkPQAuthEVMWindow(ctx context.Context, sender sdk.AccAddres
 		"pq-auth: EVM window closed for ML-DSA registered account %s (window expiry height %d); submit MsgOpenEVMWindow before sending an Ethereum transaction",
 		account, expiry,
 	)
+}
+
+// checkPQAuthSetCodeAuthorities applies the same node-local pre-check to every
+// recoverable EIP-7702 authority in a SetCode (type 0x04) transaction. The
+// EVMWindowDecorator enforces the rule in the ante handler; this only gives
+// the client an immediate error instead of a silent mempool drop.
+func (b *Backend) checkPQAuthSetCodeAuthorities(ctx context.Context, tx *ethtypes.Transaction) error {
+	if tx == nil {
+		return nil
+	}
+	for _, auth := range tx.SetCodeAuthorizations() {
+		authority, err := auth.Authority()
+		if err != nil {
+			continue
+		}
+		if err := b.checkPQAuthEVMWindow(ctx, sdk.AccAddress(authority.Bytes())); err != nil {
+			return fmt.Errorf("EIP-7702 authority: %w", err)
+		}
+	}
+	return nil
 }

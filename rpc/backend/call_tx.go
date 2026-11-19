@@ -143,6 +143,9 @@ func (b *Backend) SendRawTransaction(ctx context.Context, data hexutil.Bytes) (r
 	if err := b.checkPQAuthEVMWindow(ctx, ethereumTx.GetFrom()); err != nil {
 		return common.Hash{}, err
 	}
+	if err := b.checkPQAuthSetCodeAuthorities(ctx, tx); err != nil {
+		return common.Hash{}, err
+	}
 
 	baseDenom := evmtypes.GetEVMCoinDenom()
 
