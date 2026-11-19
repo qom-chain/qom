@@ -80,3 +80,65 @@ func SetHardeningV2ActivationHeightForTesting(height int64) (restore func()) {
 	hardeningV2ActivationHeight = height
 	return func() { hardeningV2ActivationHeight = prev }
 }
+
+// validatorKeyGuardActivationHeightValue is the first block height at which
+// the validator ML-DSA key guard applies: at the end of every block, before
+// the staking module computes the validator set, a validator that would be
+// bonded but has no ML-DSA-87 key bound to its consensus address is jailed,
+// so it never gets voting power (see Keeper.EnforceValidatorMLDSAKeys).
+//
+// Without the guard, an unkeyed validator with more than 1/3 of the voting
+// power halts the chain: every node rejects its vote extensions, and the key
+// registration can no longer be included in a block.
+//
+// Below the height the end blocker does nothing, so state, gas, and events
+// are those of the hardening v2 build.
+//
+// Override at build time for devnets and tests,
+//
+//	go build -ldflags "-X github.com/cosmos/evm/x/pqauth/types.validatorKeyGuardActivationHeightValue=20" ./cmd/evmd
+//
+// ("disabled" never activates). evmd refuses to start on chain-id
+// qom_33303-1 unless the effective height equals
+// MainnetValidatorKeyGuardActivationHeight. Every node on a network must use
+// the same value.
+//
+// TODO(mainnet): the default below is a far-future placeholder. Set it and
+// MainnetValidatorKeyGuardActivationHeight to the approved mainnet height
+// before building a mainnet binary.
+var validatorKeyGuardActivationHeightValue = "100000000"
+
+// MainnetValidatorKeyGuardActivationHeight is the mainnet activation height of
+// the validator ML-DSA key guard.
+//
+// TODO(mainnet): placeholder (block 100,000,000, years away at 5 s blocks).
+// Replace with the approved height together with the default above.
+const MainnetValidatorKeyGuardActivationHeight int64 = 100_000_000
+
+var validatorKeyGuardActivationHeight = mustParseActivationHeight(validatorKeyGuardActivationHeightValue)
+
+// CheckValidatorKeyGuardActivationForChain returns an error when chainID is
+// mainnet and the effective validator key guard activation height is not
+// MainnetValidatorKeyGuardActivationHeight.
+func CheckValidatorKeyGuardActivationForChain(chainID string) error {
+	if chainID == MainnetChainID && validatorKeyGuardActivationHeight != MainnetValidatorKeyGuardActivationHeight {
+		return fmt.Errorf("pqauth: this binary has validator key guard activation height %d but %s requires %d; rebuild without the validatorKeyGuardActivationHeightValue override",
+			validatorKeyGuardActivationHeight, MainnetChainID, MainnetValidatorKeyGuardActivationHeight)
+	}
+	return nil
+}
+
+// ValidatorKeyGuardActivationHeight returns the configured activation height,
+// or HardeningV2Disabled when the guard never activates.
+func ValidatorKeyGuardActivationHeight() int64 { return validatorKeyGuardActivationHeight }
+
+// ValidatorKeyGuardActive reports whether the validator key guard applies at height.
+func ValidatorKeyGuardActive(height int64) bool { return height >= validatorKeyGuardActivationHeight }
+
+// SetValidatorKeyGuardActivationHeightForTesting overrides the activation
+// height and returns a function that restores the previous value. Tests only.
+func SetValidatorKeyGuardActivationHeightForTesting(height int64) (restore func()) {
+	prev := validatorKeyGuardActivationHeight
+	validatorKeyGuardActivationHeight = height
+	return func() { validatorKeyGuardActivationHeight = prev }
+}
