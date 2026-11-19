@@ -1715,7 +1715,11 @@ func (pool *LegacyPool) runReorg(input reorgInput) {
 	if input.reset != nil {
 		pool.demoteUnexecutables(input.cancelReset, input.reset)
 		if input.reset.newHead != nil {
-			if pool.chainconfig.IsLondon(new(big.Int).Add(input.reset.newHead.Number, big.NewInt(1))) {
+			// The chain may return a placeholder header without a base fee (for
+			// example when the latest context is not available yet); there is no
+			// base fee to derive from it, so only re-heap in that case.
+			if input.reset.newHead.BaseFee != nil &&
+				pool.chainconfig.IsLondon(new(big.Int).Add(input.reset.newHead.Number, big.NewInt(1))) {
 				pendingBaseFee := eip1559.CalcBaseFee(pool.chainconfig, input.reset.newHead)
 				pool.priced.SetBaseFee(pendingBaseFee)
 			} else {
