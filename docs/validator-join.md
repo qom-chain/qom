@@ -160,6 +160,17 @@ go version
 records that path in the binary, so another path builds a binary that
 works the same but has a different SHA-256.
 
+Start from an empty module cache. If you have built before, clear it with
+Go's own command (with `GOMODCACHE` still set as above):
+
+```bash
+go clean -modcache
+```
+
+Do not use a plain `rm -rf` on the cache. Go stores module files
+read-only, so `rm` fails part way. If you must delete it by hand, make it
+writable first: `chmod -R u+w /var/tmp/qom-gomodcache && rm -rf /var/tmp/qom-gomodcache`.
+
 Clone the repository and check out the release:
 
 ```bash

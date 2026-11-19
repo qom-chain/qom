@@ -23,8 +23,7 @@ activation height; see [docs/validator-join.md](docs/validator-join.md#14-day-to
          - downstream effects
 
 2. **Signed Commits**
-   - All commits must be [signed](https://docs.github.com/en/authentication/managing-commit-signature-verification/signing-commits).
-   - Unsigned commits will be rejected.
+   - [Signed commits](https://docs.github.com/en/authentication/managing-commit-signature-verification/signing-commits) are encouraged.
 
 3. **Conventional Commit PR Titles**
     - PR titles should use the [conventional commit](https://www.conventionalcommits.org/en/v1.0.0/#summary) format.
