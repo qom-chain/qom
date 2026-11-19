@@ -7,18 +7,22 @@ import (
 	"time"
 
 	"github.com/cloudflare/circl/sign/mldsa/mldsa87"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 
 	"github.com/cosmos/evm/crypto/ethsecp256k1"
 	pqauth "github.com/cosmos/evm/x/pqauth"
 	"github.com/cosmos/evm/x/pqauth/keeper"
 	"github.com/cosmos/evm/x/pqauth/types"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 
+	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	storetypes "github.com/cosmos/cosmos-sdk/store/v2/types"
 	"github.com/cosmos/cosmos-sdk/testutil"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
+	"github.com/cosmos/cosmos-sdk/types/query"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	"github.com/cosmos/cosmos-sdk/x/feegrant"
@@ -28,7 +32,8 @@ const testChainID = "qomx-test"
 
 type nopAuthz struct{}
 
-func (nopAuthz) IterateGrants(context.Context, func(sdk.AccAddress, sdk.AccAddress, authz.Grant) bool) {
+func (nopAuthz) GranterGrants(context.Context, *authz.QueryGranterGrantsRequest) (*authz.QueryGranterGrantsResponse, error) {
+	return &authz.QueryGranterGrantsResponse{}, nil
 }
 
 func (nopAuthz) DeleteGrant(context.Context, sdk.AccAddress, sdk.AccAddress, string) error {
@@ -53,15 +58,45 @@ type storedGrant struct {
 }
 
 type memAuthz struct {
-	grants []storedGrant
+	grants         []storedGrant
+	granterQueries int
 }
 
-func (m *memAuthz) IterateGrants(_ context.Context, handler func(sdk.AccAddress, sdk.AccAddress, authz.Grant) bool) {
-	for _, grant := range m.grants {
-		if handler(grant.granter, grant.grantee, grant.grant) {
-			return
-		}
+// GranterGrants returns the granter's grants one at a time, so the keeper's
+// pagination loop is exercised. NextKey is the index of the next grant.
+func (m *memAuthz) GranterGrants(_ context.Context, req *authz.QueryGranterGrantsRequest) (*authz.QueryGranterGrantsResponse, error) {
+	m.granterQueries++
+	start := 0
+	if req.Pagination != nil && len(req.Pagination.Key) > 0 {
+		start = int(req.Pagination.Key[0])
 	}
+	for i := start; i < len(m.grants); i++ {
+		grant := m.grants[i]
+		if grant.granter.String() != req.Granter {
+			continue
+		}
+		authorization, err := grant.grant.GetAuthorization()
+		if err != nil {
+			return nil, err
+		}
+		anyAuth, err := codectypes.NewAnyWithValue(authorization)
+		if err != nil {
+			return nil, err
+		}
+		res := &authz.QueryGranterGrantsResponse{
+			Grants: []*authz.GrantAuthorization{{
+				Granter:       grant.granter.String(),
+				Grantee:       grant.grantee.String(),
+				Authorization: anyAuth,
+			}},
+			Pagination: &query.PageResponse{},
+		}
+		if i+1 < len(m.grants) {
+			res.Pagination.NextKey = []byte{byte(i + 1)}
+		}
+		return res, nil
+	}
+	return &authz.QueryGranterGrantsResponse{Pagination: &query.PageResponse{}}, nil
 }
 
 func (m *memAuthz) DeleteGrant(_ context.Context, grantee, granter sdk.AccAddress, msgType string) error {
@@ -104,6 +139,35 @@ func (m *memFees) RevokeAllowance(_ context.Context, granter, grantee sdk.AccAdd
 	}
 	m.allowances = kept
 	return nil
+}
+
+// memEVM returns a stored code hash per address; absent means no code.
+type memEVM struct {
+	codeHashes map[common.Address]common.Hash
+}
+
+func (m memEVM) GetCodeHash(_ sdk.Context, addr common.Address) common.Hash {
+	if h, ok := m.codeHashes[addr]; ok {
+		return h
+	}
+	return common.BytesToHash(evmtypes.EmptyCodeHash)
+}
+
+// memERC20 records allowance deletions by owner.
+type memERC20 struct {
+	allowances map[common.Address]int
+	deleted    []common.Address
+	err        error
+}
+
+func (m *memERC20) DeleteOwnerAllowances(_ sdk.Context, owner common.Address) (int, error) {
+	if m.err != nil {
+		return 0, m.err
+	}
+	m.deleted = append(m.deleted, owner)
+	n := m.allowances[owner]
+	delete(m.allowances, owner)
+	return n, nil
 }
 
 type accountKeeperStub struct {
@@ -155,6 +219,7 @@ func setupKeeper(t *testing.T, accs ...sdk.AccountI) (sdk.Context, keeper.Keeper
 	}
 	k := keeper.NewKeeper(key, accountKeeperStub{accounts: accounts})
 	k.SetDelegationKeepers(nopAuthz{}, nopFees{}, nil)
+	k.SetEVMKeepers(memEVM{}, &memERC20{})
 	return ctx, k
 }
 
@@ -485,6 +550,7 @@ func TestRegisterMLDSAKeyRejectsBadProofAndRevokesGrants(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, grants.grants, 1)
 	require.True(t, grants.grants[0].granter.Equals(other))
+	require.GreaterOrEqual(t, grants.granterQueries, 1)
 	require.Len(t, fees.allowances, 1)
 	require.True(t, fees.allowances[0].granter.Equals(other))
 }
