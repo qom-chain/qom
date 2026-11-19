@@ -8,9 +8,12 @@
 #   ../src-voteext/cosmos-sdk-v0.54.3-qomx
 # Those directory names are recorded in the binary's build info.
 #
+# Release build (reproduces the published sha256; see docs/build.md):
+#   export GOTOOLCHAIN=go1.25.9 CGO_ENABLED=1
 #   sh scripts/prepare-evmd-build.sh
-#   cd evmd && go build -trimpath -buildvcs=false -ldflags="-s -w" ./cmd/evmd
-#   git checkout -- evmd/go.mod evmd/go.sum
+#   cd evmd && go build -trimpath -buildvcs=false -o build/evmd ./cmd/evmd
+#   strip build/evmd
+#   git checkout -- go.mod go.sum   # do not commit the local replaces
 set -eu
 
 root=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
@@ -18,5 +21,5 @@ root=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
 # even if a checkout is missing the executable bit.
 sh "$root/scripts/patch-cometbft-voteext.sh"
 sh "$root/scripts/apply-cosmos-sdk-clifix.sh"
-echo 'Build with: cd evmd && go build -trimpath -buildvcs=false -ldflags="-s -w" ./cmd/evmd'
+echo 'Build with: cd evmd && go build -trimpath -buildvcs=false -o build/evmd ./cmd/evmd && strip build/evmd'
 echo "Do not commit evmd/go.mod or evmd/go.sum replaces."
