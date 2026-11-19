@@ -12,4 +12,5 @@ type Erc20Keeper interface {
 	GetAllowance(ctx sdk.Context, erc20 common.Address, owner common.Address, spender common.Address) (*big.Int, error)
 	SetAllowance(ctx sdk.Context, erc20 common.Address, owner common.Address, spender common.Address, value *big.Int) error
 	DeleteAllowance(ctx sdk.Context, erc20 common.Address, owner common.Address, spender common.Address) error
+	CheckOwnerEVMWindow(ctx sdk.Context, owner common.Address) error
 }

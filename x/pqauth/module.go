@@ -33,6 +33,7 @@ var (
 	_ module.AppModuleSimulation = AppModule{}
 	_ module.HasABCIGenesis      = AppModule{}
 	_ appmodule.AppModule        = AppModule{}
+	_ appmodule.HasEndBlocker    = AppModule{}
 )
 
 // AppModuleBasic implements the stateless module methods.
@@ -131,6 +132,12 @@ func (AppModule) GenerateGenesisState(simState *module.SimulationState) {
 // WeightedOperations returns no simulation operations.
 func (AppModule) WeightedOperations(_ module.SimulationState) []simtypes.WeightedOperation {
 	return nil
+}
+
+// EndBlock runs the validator ML-DSA key guard. It must be ordered before the
+// staking end blocker. It does nothing below the guard activation height.
+func (am AppModule) EndBlock(ctx context.Context) error {
+	return am.keeper.EnforceValidatorMLDSAKeys(sdk.UnwrapSDKContext(ctx))
 }
 
 // IsAppModule implements appmodule.AppModule.

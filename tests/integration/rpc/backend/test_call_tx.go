@@ -356,6 +356,7 @@ func (s *TestSuite) TestSendRawTransaction() {
 				cosmosTx, _ := ethTx.BuildTx(s.backend.ClientCtx.TxConfig.NewTxBuilder(), evmDenom)
 
 				s.backend.AllowUnprotectedTxs = true
+				RegisterPQAuthUnregistered(s.backend.ClientCtx.Client.(*mocks.Client))
 				RegisterMempoolInsert(s.T(), s.Mempool(), cosmosTx, errors.New("queue is full"))
 			},
 			rawTx: func() []byte {
@@ -370,6 +371,7 @@ func (s *TestSuite) TestSendRawTransaction() {
 			registerMock: func() {
 				cosmosTx, _ := ethTx.BuildTx(s.backend.ClientCtx.TxConfig.NewTxBuilder(), evmDenom)
 				s.backend.AllowUnprotectedTxs = true
+				RegisterPQAuthUnregistered(s.backend.ClientCtx.Client.(*mocks.Client))
 
 				RegisterMempoolInsert(s.T(), s.Mempool(), cosmosTx, nil)
 			},

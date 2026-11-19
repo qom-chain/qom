@@ -20,6 +20,7 @@ import (
 
 	"github.com/cosmos/evm/rpc/backend/mocks"
 	rpc "github.com/cosmos/evm/rpc/types"
+	pqauthtypes "github.com/cosmos/evm/x/pqauth/types"
 	evmtypes "github.com/cosmos/evm/x/vm/types"
 
 	"github.com/cosmos/cosmos-sdk/client"
@@ -367,4 +368,14 @@ func RegisterABCIQueryAccount(clients *mocks.Client, data bytes.HexBytes, opts c
 				Height: 1,
 			},
 		}, nil)
+}
+
+// RegisterPQAuthUnregistered answers the eth_sendRawTransaction pqauth
+// pre-check: every account queried is not ML-DSA registered.
+func RegisterPQAuthUnregistered(clients *mocks.Client) {
+	respBz, _ := (&pqauthtypes.QueryMLDSAPubKeyResponse{Registered: false}).Marshal()
+	clients.EXPECT().ABCIQueryWithOptions(mock.Anything, "/cosmos.evm.pqauth.v1.Query/MLDSAPubKey", mock.Anything, mock.Anything).
+		Return(&cmtrpctypes.ResultABCIQuery{
+			Response: abci.ResponseQuery{Value: respBz, Height: 1},
+		}, nil).Maybe()
 }

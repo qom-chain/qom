@@ -87,6 +87,12 @@ func (p *Precompile) transfer(
 	newAllowance := big.NewInt(0)
 
 	if isTransferFrom {
+		// pqauth: an allowance from an ML-DSA-87 registered owner is spendable
+		// only while the owner's EVM authorisation window is open.
+		if err := p.erc20Keeper.CheckOwnerEVMWindow(ctx, from); err != nil {
+			return nil, err
+		}
+
 		prevAllowance, err := p.erc20Keeper.GetAllowance(ctx, p.Address(), from, spenderAddr)
 		if err != nil {
 			return nil, ConvertErrToERC20Error(err)

@@ -85,7 +85,7 @@ func TestEVMWindowDecorator(t *testing.T) {
 	require.NoError(t, pq.SetMLDSAPubKey(ctx, user, pubBz))
 	require.NoError(t, pq.SetMLDSAPubKey(ctx, modAddr, pubBz))
 
-	dec := evm.NewEVMWindowDecorator(ak, pq)
+	dec := evm.NewEVMWindowDecorator(ak, pq, memCode{})
 
 	called, err := runWindow(dec, ctx, msgsTx{msgs: []sdk.Msg{ethTx(user)}})
 	require.ErrorIs(t, err, sdkerrors.ErrUnauthorized)
@@ -141,7 +141,7 @@ func TestRestrictCosmosPrecompilesRejectsTopLevelBankStakingGov(t *testing.T) {
 		EvmWindowDuration:         100,
 		RestrictCosmosPrecompiles: true,
 	}))
-	dec := evm.NewEVMWindowDecorator(ak, pq)
+	dec := evm.NewEVMWindowDecorator(ak, pq, memCode{})
 
 	for _, target := range []string{
 		evmtypes.BankPrecompileAddress,

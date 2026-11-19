@@ -38,6 +38,12 @@ func (p Precompile) Approve(
 
 	owner := contract.Caller()
 
+	// pqauth: an ML-DSA-87 registered owner sets allowances only while its
+	// EVM authorisation window is open.
+	if err := p.erc20Keeper.CheckOwnerEVMWindow(ctx, owner); err != nil {
+		return nil, err
+	}
+
 	// TODO: owner should be the owner of the contract
 	allowance, err := p.erc20Keeper.GetAllowance(ctx, p.Address(), owner, spender)
 	if err != nil {

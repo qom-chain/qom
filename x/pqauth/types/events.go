@@ -6,6 +6,12 @@ const (
 	EventTypeRegisterValidatorMLDSAKey = "register_validator_mldsa_key"
 	EventTypeOpenEVMWindow             = "open_evm_window"
 
+	// EventTypeJailValidatorMissingMLDSAKey is emitted when the validator key
+	// guard jails a validator that has no ML-DSA key.
+	EventTypeJailValidatorMissingMLDSAKey = "jail_validator_missing_mldsa_key"
+
+	AttributeKeyValidator = "validator"
+
 	AttributeKeyConsensusAddress = "consensus_address"
 
 	AttributeKeyAccount = "account"

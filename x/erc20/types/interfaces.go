@@ -84,3 +84,10 @@ type BankKeeper interface {
 	SetDenomMetaData(ctx context.Context, denomMetaData banktypes.Metadata)
 	SpendableCoin(ctx context.Context, addr sdk.AccAddress, denom string) sdk.Coin
 }
+
+// PQAuthKeeper reports an account's pqauth state. An ML-DSA-87 registered
+// account authorises Ethereum activity only while its EVM window is open.
+type PQAuthKeeper interface {
+	GetMLDSAPubKey(ctx sdk.Context, addr sdk.AccAddress) ([]byte, bool)
+	IsEVMWindowOpen(ctx sdk.Context, addr sdk.AccAddress) bool
+}

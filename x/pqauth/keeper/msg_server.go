@@ -26,6 +26,9 @@ var _ types.MsgServer = Keeper{}
 // pop_signature proves the account holds the matching ML-DSA private key.
 // Existing authz grants and fee allowances where this account is the granter
 // are deleted, so a grant created before registration cannot bypass ML-DSA.
+// From the hardening v2 activation height, an account with EVM code
+// (including an EIP-7702 delegation) is refused, and ERC-20 precompile
+// allowances it owns are deleted as well.
 func (k Keeper) RegisterMLDSAKey(goCtx context.Context, msg *types.MsgRegisterMLDSAKey) (*types.MsgRegisterMLDSAKeyResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
 	if err := msg.ValidateBasic(); err != nil {
@@ -40,11 +43,22 @@ func (k Keeper) RegisterMLDSAKey(goCtx context.Context, msg *types.MsgRegisterML
 	if k.HasMLDSAPubKey(ctx, addr) {
 		return nil, errorsmod.Wrapf(types.ErrMLDSAKeyExists, "account %s already has an ML-DSA-87 public key; rotate it with MsgRotateMLDSAKey", msg.Signer)
 	}
+	hardened := types.HardeningV2Active(ctx.BlockHeight())
+	if hardened {
+		if err := k.requireNoEVMCode(ctx, addr, msg.Signer); err != nil {
+			return nil, err
+		}
+	}
 	if err := k.verifyAccountPop(ctx, addr, secpPub, msg.PubKey, msg.PopSignature); err != nil {
 		return nil, errorsmod.Wrapf(err, "account %s", msg.Signer)
 	}
 	if err := k.revokeGranterAuthorisations(ctx, addr); err != nil {
 		return nil, err
+	}
+	if hardened {
+		if err := k.revokeERC20Allowances(ctx, addr); err != nil {
+			return nil, err
+		}
 	}
 	if err := k.SetMLDSAPubKey(ctx, addr, msg.PubKey); err != nil {
 		return nil, errorsmod.Wrapf(err, "account %s: ML-DSA-87 public key was rejected", msg.Signer)

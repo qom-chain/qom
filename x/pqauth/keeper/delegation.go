@@ -3,6 +3,8 @@ package keeper
 import (
 	"context"
 
+	"github.com/ethereum/go-ethereum/common"
+
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	"github.com/cosmos/cosmos-sdk/x/feegrant"
 	feegrantkeeper "github.com/cosmos/cosmos-sdk/x/feegrant/keeper"
@@ -11,10 +13,27 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-// AuthzKeeper deletes grants where an account is the granter.
+// AuthzKeeper lists and deletes grants where an account is the granter.
+// GranterGrants reads only the granter's key prefix, so the cost of a lookup
+// is bounded by that account's own grants, not by every grant on chain.
+//
+// IterateGrants is the full-store scan used below the hardening v2
+// activation height, so gas there matches 32ee354.
 type AuthzKeeper interface {
 	IterateGrants(ctx context.Context, handler func(granterAddr, granteeAddr sdk.AccAddress, grant authz.Grant) bool)
+	GranterGrants(ctx context.Context, req *authz.QueryGranterGrantsRequest) (*authz.QueryGranterGrantsResponse, error)
 	DeleteGrant(ctx context.Context, grantee, granter sdk.AccAddress, msgType string) error
+}
+
+// EVMCodeKeeper reads an account's EVM code hash. The EVM keeper implements it.
+type EVMCodeKeeper interface {
+	GetCodeHash(ctx sdk.Context, addr common.Address) common.Hash
+}
+
+// ERC20AllowanceKeeper deletes the ERC-20 precompile allowances an account
+// owns. The erc20 keeper implements it.
+type ERC20AllowanceKeeper interface {
+	DeleteOwnerAllowances(ctx sdk.Context, owner common.Address) (int, error)
 }
 
 // FeeAllowanceRevoker deletes fee allowances granted by an account.
@@ -38,6 +57,18 @@ func (k *Keeper) SetDelegationKeepers(authzKeeper AuthzKeeper, fees FeeAllowance
 	k.authz = authzKeeper
 	k.fees = fees
 	k.staking = staking
+}
+
+// SetEVMKeepers attaches the EVM code reader and the ERC-20 allowance keeper
+// used by registration. Registration refuses an account that has EVM code and
+// deletes ERC-20 precompile allowances the account owns. The application sets
+// both; registration fails while either is nil.
+func (k *Keeper) SetEVMKeepers(evm EVMCodeKeeper, erc20 ERC20AllowanceKeeper) {
+	if k == nil {
+		return
+	}
+	k.evm = evm
+	k.erc20 = erc20
 }
 
 // feegrantRevoker adapts the SDK feegrant keeper. RevokeAllowance on that
