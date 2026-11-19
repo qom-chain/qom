@@ -27,6 +27,7 @@ type Keeper struct {
 	staking       StakingKeeper
 	evm           EVMCodeKeeper
 	erc20         ERC20AllowanceKeeper
+	valset        ValidatorSetKeeper
 }
 
 // NewKeeper returns a pqauth keeper.

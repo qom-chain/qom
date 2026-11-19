@@ -394,6 +394,9 @@ func NewExampleApp(
 		pqauthkeeper.NewFeegrantRevoker(app.FeeGrantKeeper),
 		app.StakingKeeper,
 	)
+	// The validator ML-DSA key guard jails validators that would be bonded
+	// without a key. Its end blocker runs before staking's (see below).
+	app.PQAuthKeeper.SetValidatorSetKeeper(app.StakingKeeper)
 
 	// get skipUpgradeHeights from the app options
 	skipUpgradeHeights := map[int64]bool{}
@@ -524,6 +527,14 @@ func NewExampleApp(
 	// precompile gates approve/transferFrom on the owner's EVM window.
 	if err := pqauthtypes.CheckHardeningV2ActivationForChain(app.ChainID()); err != nil {
 		panic(err)
+	}
+	if err := pqauthtypes.CheckValidatorKeyGuardActivationForChain(app.ChainID()); err != nil {
+		panic(err)
+	}
+	if h := pqauthtypes.ValidatorKeyGuardActivationHeight(); h == pqauthtypes.HardeningV2Disabled {
+		logger.Info("pqauth validator key guard is disabled in this build")
+	} else {
+		logger.Info("pqauth validator key guard activation height", "height", h)
 	}
 	if h := pqauthtypes.HardeningV2ActivationHeight(); h == pqauthtypes.HardeningV2Disabled {
 		logger.Info("pqauth hardening v2 is disabled in this build (32ee354 rules at every height)")
@@ -673,6 +684,10 @@ func NewExampleApp(
 	app.ModuleManager.SetOrderEndBlockers(
 		banktypes.ModuleName,
 		govtypes.ModuleName,
+		// pqauth must run right before staking: it jails validators that
+		// would be bonded without an ML-DSA key (no-op below the validator
+		// key guard activation height).
+		pqauthtypes.ModuleName,
 		stakingtypes.ModuleName,
 		authtypes.ModuleName,
 
