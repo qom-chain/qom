@@ -236,6 +236,12 @@ func (pubKey PubKey) verifySignatureAsEIP712(msg, sig []byte) bool {
 	return pubKey.verifySignatureECDSA(legacyEIP712Bytes, sig)
 }
 
+// VerifySignatureECDSA verifies the signature over msg with standard ECDSA
+// verification only, without the EIP-712 fallback of VerifySignature.
+func (pubKey PubKey) VerifySignatureECDSA(msg, sig []byte) bool {
+	return pubKey.verifySignatureECDSA(msg, sig)
+}
+
 // Perform standard ECDSA signature verification for the given raw bytes and signature.
 func (pubKey PubKey) verifySignatureECDSA(msg, sig []byte) bool {
 	if len(sig) == crypto.SignatureLength {

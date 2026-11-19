@@ -531,6 +531,14 @@ func NewExampleApp(
 	if err := pqauthtypes.CheckValidatorKeyGuardActivationForChain(app.ChainID()); err != nil {
 		panic(err)
 	}
+	if err := pqauthtypes.CheckUpstreamFixesActivationForChain(app.ChainID()); err != nil {
+		panic(err)
+	}
+	if h := pqauthtypes.UpstreamFixesActivationHeight(); h == pqauthtypes.HardeningV2Disabled {
+		logger.Info("upstream fixes are disabled in this build")
+	} else {
+		logger.Info("upstream fixes activation height", "height", h)
+	}
 	if h := pqauthtypes.ValidatorKeyGuardActivationHeight(); h == pqauthtypes.HardeningV2Disabled {
 		logger.Info("pqauth validator key guard is disabled in this build")
 	} else {
