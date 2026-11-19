@@ -8,6 +8,7 @@ import (
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 
 	anteinterfaces "github.com/cosmos/evm/ante/interfaces"
+	pqauthtypes "github.com/cosmos/evm/x/pqauth/types"
 	evmtypes "github.com/cosmos/evm/x/vm/types"
 
 	errorsmod "cosmossdk.io/errors"
@@ -34,7 +35,8 @@ type codeKeeper interface {
 // Senders without a registered key keep normal ethereum behaviour.
 // Module accounts and IBC messages are exempt.
 //
-// A registered authority may only sign a SetCode authorisation that clears
+// From the hardening v2 activation height (pqauthtypes.HardeningV2Active):
+// a registered authority may only sign a SetCode authorisation that clears
 // delegation (target 0x0). A non-zero target is rejected even while the
 // window is open: delegated code would run as the account on every later
 // call, after the window closes, and outside ML-DSA control.
@@ -97,8 +99,10 @@ func (d EVMWindowDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool
 		if err := d.checkSetCodeAuthorities(ctx, ethMsg); err != nil {
 			return ctx, err
 		}
-		if err := d.checkDelegatedRecipient(ctx, ethMsg); err != nil {
-			return ctx, err
+		if pqauthtypes.HardeningV2Active(ctx.BlockHeight()) {
+			if err := d.checkDelegatedRecipient(ctx, ethMsg); err != nil {
+				return ctx, err
+			}
 		}
 	}
 
@@ -152,7 +156,7 @@ func (d EVMWindowDecorator) checkSetCodeAuthorities(ctx sdk.Context, ethMsg *evm
 		if _, registered := d.pq.GetMLDSAPubKey(ctx, addr); !registered {
 			continue
 		}
-		if auth.Address != (common.Address{}) {
+		if auth.Address != (common.Address{}) && pqauthtypes.HardeningV2Active(ctx.BlockHeight()) {
 			return errorsmod.Wrapf(
 				errortypes.ErrUnauthorized,
 				"account %s has a registered ML-DSA-87 key, so its EIP-7702 SetCode authorisation may only clear delegation (target 0x0000000000000000000000000000000000000000), not delegate to %s",

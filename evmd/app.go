@@ -522,6 +522,11 @@ func NewExampleApp(
 	// the IBC transfer stack. Registration refuses accounts with EVM code and
 	// deletes ERC-20 precompile allowances the account owns; the ERC-20
 	// precompile gates approve/transferFrom on the owner's EVM window.
+	if h := pqauthtypes.HardeningV2ActivationHeight(); h == pqauthtypes.HardeningV2Disabled {
+		logger.Info("pqauth hardening v2 is disabled in this build (32ee354 rules at every height)")
+	} else {
+		logger.Info("pqauth hardening v2 activation height", "height", h)
+	}
 	app.PQAuthKeeper.SetEVMKeepers(app.EVMKeeper, &app.Erc20Keeper)
 	app.Erc20Keeper.SetPQAuthKeeper(app.PQAuthKeeper)
 
