@@ -5,7 +5,8 @@ on:
   push:
     branches:
       - main
-      - feat/krakatoa
+    tags:
+      - "qom-v*"
 
 concurrency:
   group: build-${{ github.ref }}
@@ -16,85 +17,38 @@ permissions:
 
 jobs:
   build:
-    timeout-minutes: 15
-    runs-on: ${{ matrix.runner }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - goarch: amd64
-            runner: depot-ubuntu-22.04-4
-          - goarch: arm64
-            runner: depot-ubuntu-22.04-arm-4
-
+    timeout-minutes: 45
+    runs-on: ubuntu-latest
+    env:
+      GOTOOLCHAIN: go1.25.9
+      CGO_ENABLED: "1"
+      GOMODCACHE: /var/tmp/qom-gomodcache
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Required for git describe to get version tags
 
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.25"
-          check-latest: true
-          cache: true
-          cache-dependency-path: |
-            go.sum
-            evmd/go.sum
+          go-version: "1.25.9"
+          cache: false
 
-      - name: Get version info
-        id: version
-        shell: bash
-        run: |
-          VERSION=$(git describe --tags --always | sed 's/^v//')
-          COMMIT=$(git log -1 --format='%H')
-          COMMIT_SHORT=$(git log -1 --format='%h')
-          TMVERSION=$(go list -m github.com/cometbft/cometbft | sed 's:.* ::')
-          BRANCH_NAME=$(echo "${{ github.ref_name }}" | sed 's|/|-|g')
+      - name: Prepare patched CometBFT and Cosmos SDK trees
+        run: sh scripts/prepare-evmd-build.sh
 
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "commit=${COMMIT}" >> "$GITHUB_OUTPUT"
-          echo "commit_short=${COMMIT_SHORT}" >> "$GITHUB_OUTPUT"
-          echo "tmversion=${TMVERSION}" >> "$GITHUB_OUTPUT"
-          echo "branch=${BRANCH_NAME}" >> "$GITHUB_OUTPUT"
-
-      - name: Build evmd
+      - name: Build evmd (release recipe, docs/validator-join.md section 3)
         working-directory: evmd
-        env:
-          GOOS: linux
-          GOARCH: ${{ matrix.goarch }}
-          CGO_ENABLED: "1"
-        shell: bash
         run: |
-          BINARY_NAME="evmd-${{ steps.version.outputs.branch }}-${{ steps.version.outputs.commit_short }}-linux-${{ matrix.goarch }}"
-
-          go build \
-            -trimpath \
-            -tags "netgo" \
-            -ldflags "-w -s \
-              -X github.com/cosmos/cosmos-sdk/version.Name=evmd \
-              -X github.com/cosmos/cosmos-sdk/version.AppName=evmd \
-              -X github.com/cosmos/cosmos-sdk/version.Version=${{ steps.version.outputs.version }} \
-              -X github.com/cosmos/cosmos-sdk/version.Commit=${{ steps.version.outputs.commit }} \
-              -X github.com/cometbft/cometbft/version.TMCoreSemVer=${{ steps.version.outputs.tmversion }} \
-              -X github.com/cosmos/cosmos-sdk/version.BuildTags=netgo" \
-            -o "${BINARY_NAME}" \
-            ./cmd/evmd
-
-      - name: Generate checksum
-        working-directory: evmd
-        shell: bash
-        run: |
-          BINARY_NAME="evmd-${{ steps.version.outputs.branch }}-${{ steps.version.outputs.commit_short }}-linux-${{ matrix.goarch }}"
-          sha256sum "${BINARY_NAME}" > "${BINARY_NAME}.sha256"
+          go build -trimpath -buildvcs=false -o build/evmd ./cmd/evmd
+          strip build/evmd
+          sha256sum build/evmd | tee build/evmd.sha256
 
       - name: Upload binary
         uses: actions/upload-artifact@v4
         with:
-          name: evmd-${{ steps.version.outputs.branch }}-${{ steps.version.outputs.commit_short }}-linux-${{ matrix.goarch }}
+          name: evmd-linux-amd64-${{ github.sha }}
           path: |
-            evmd/evmd-${{ steps.version.outputs.branch }}-${{ steps.version.outputs.commit_short }}-linux-${{ matrix.goarch }}
-            evmd/evmd-${{ steps.version.outputs.branch }}-${{ steps.version.outputs.commit_short }}-linux-${{ matrix.goarch }}.sha256
+            evmd/build/evmd
+            evmd/build/evmd.sha256
           retention-days: 30
           if-no-files-found: error

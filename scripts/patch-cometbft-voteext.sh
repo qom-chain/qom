@@ -7,10 +7,16 @@ set -eu
 
 root=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
 dest=${1:-"$root/../src-voteext/cometbft-v0.39.3-voteext"}
-mod=$(go env GOPATH)/pkg/mod/github.com/cometbft/cometbft@v0.39.3
+version=v0.39.3
 
+# Prefer the Go module cache copy; otherwise download it from the Go module
+# proxy (the download is verified against go.sum / sum.golang.org).
+mod=$(go env GOMODCACHE)/github.com/cometbft/cometbft@$version
 if [ ! -d "$mod" ]; then
-	echo "missing $mod; download github.com/cometbft/cometbft v0.39.3 first" >&2
+	(cd "$root/evmd" && go mod download github.com/cometbft/cometbft@$version)
+fi
+if [ ! -d "$mod" ]; then
+	echo "missing $mod; could not download github.com/cometbft/cometbft $version" >&2
 	exit 1
 fi
 
@@ -40,5 +46,4 @@ rel=$(python3 -c 'import os,sys; print(os.path.relpath(sys.argv[1], sys.argv[2])
 
 echo "patched CometBFT at $dest"
 echo "evmd/go.mod: replace github.com/cometbft/cometbft => $rel"
-echo 'build: sh scripts/prepare-evmd-build.sh && cd evmd && go build -trimpath -buildvcs=false -ldflags="-s -w" ./cmd/evmd'
 echo "(do not commit the replace)"
