@@ -41,6 +41,7 @@ func newCosmosAnteHandler(ctx sdk.Context, options HandlerOptions) sdk.AnteHandl
 		ante.NewValidateSigCountDecorator(options.AccountKeeper),
 		ante.NewSigGasConsumeDecorator(options.AccountKeeper, options.SigGasConsumer),
 		ante.NewSigVerificationDecorator(options.AccountKeeper, options.SignModeHandler),
+		cosmosante.NewEIP712SignDocFieldsDecorator(options.AccountKeeper, options.SignModeHandler),
 		cosmosante.NewMLDSASigDecorator(options.AccountKeeper, options.PQAuthKeeper, options.SignModeHandler, options.AuthzKeeper, options.Cdc),
 		ante.NewIncrementSequenceDecorator(options.AccountKeeper),
 		ibcante.NewRedundantRelayDecorator(options.IBCKeeper),
