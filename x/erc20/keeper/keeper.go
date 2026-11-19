@@ -27,6 +27,9 @@ type Keeper struct {
 	evmKeeper      types.EVMKeeper
 	stakingKeeper  types.StakingKeeper
 	transferKeeper *transferkeeper.Keeper
+	// pqAuthKeeper gates ERC-20 precompile allowances of ML-DSA-87 registered
+	// owners. Nil disables the gate (chains without x/pqauth).
+	pqAuthKeeper types.PQAuthKeeper
 }
 
 // NewKeeper creates new instances of the erc20 Keeper
