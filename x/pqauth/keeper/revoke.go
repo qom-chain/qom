@@ -3,6 +3,7 @@ package keeper
 import (
 	"github.com/ethereum/go-ethereum/common"
 
+	"github.com/cosmos/evm/x/pqauth/types"
 	evmtypes "github.com/cosmos/evm/x/vm/types"
 
 	errorsmod "cosmossdk.io/errors"
@@ -43,7 +44,13 @@ func (k Keeper) revokeGranterAuthorisations(ctx sdk.Context, granter sdk.AccAddr
 		return errorsmod.Wrap(sdkerrors.ErrLogic, "pqauth authz and feegrant keepers must be set before registration")
 	}
 
-	grants, err := k.granterGrants(ctx, granter)
+	var grants []authzGrantRef
+	var err error
+	if types.HardeningV2Active(ctx.BlockHeight()) {
+		grants, err = k.granterGrants(ctx, granter)
+	} else {
+		grants, err = k.granterGrantsLegacyScan(ctx, granter)
+	}
 	if err != nil {
 		return err
 	}
@@ -82,6 +89,34 @@ func (k Keeper) revokeGranterAuthorisations(ctx sdk.Context, granter sdk.AccAddr
 		}
 	}
 	return nil
+}
+
+// granterGrantsLegacyScan is the 32ee354 lookup: a scan of every authz grant
+// on chain, filtered by granter. It is kept unchanged below the hardening v2
+// activation height so historical gas is identical.
+func (k Keeper) granterGrantsLegacyScan(ctx sdk.Context, granter sdk.AccAddress) ([]authzGrantRef, error) {
+	var grants []authzGrantRef
+	var grantErr error
+	k.authz.IterateGrants(ctx, func(granterAddr, granteeAddr sdk.AccAddress, grant authz.Grant) bool {
+		if !granterAddr.Equals(granter) {
+			return false
+		}
+		authorization, err := grant.GetAuthorization()
+		if err != nil {
+			grantErr = err
+			return true
+		}
+		grants = append(grants, authzGrantRef{
+			granter: append(sdk.AccAddress(nil), granterAddr...),
+			grantee: append(sdk.AccAddress(nil), granteeAddr...),
+			msgType: authorization.MsgTypeURL(),
+		})
+		return false
+	})
+	if grantErr != nil {
+		return nil, errorsmod.Wrap(grantErr, "read authz grant")
+	}
+	return grants, nil
 }
 
 // granterGrants returns every authz grant whose granter is granter, page by
