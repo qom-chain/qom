@@ -1,8 +1,11 @@
 package evmd
 
 import (
+	abci "github.com/cometbft/cometbft/abci/types"
+
 	evmmempool "github.com/cosmos/evm/mempool"
 	"github.com/cosmos/evm/server"
+	pqauthtypes "github.com/cosmos/evm/x/pqauth/types"
 	evmtypes "github.com/cosmos/evm/x/vm/types"
 
 	"cosmossdk.io/log/v2"
@@ -10,6 +13,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkmempool "github.com/cosmos/cosmos-sdk/types/mempool"
 )
 
 // configureEVMMempool sets up the EVM mempool and related handlers using viper configuration.
@@ -54,9 +58,37 @@ func (app *EVMD) configureEVMMempool(appOpts servertypes.AppOptions, logger log.
 	app.EVMMempool = mempool
 
 	// create ABCI handlers
-	prepareProposalHandler := baseapp.
-		NewDefaultProposalHandler(mempool, NewNoCheckProposalTxVerifier(app.BaseApp)).
-		PrepareProposalHandler()
+	proposalHandler := baseapp.NewDefaultProposalHandler(mempool, NewNoCheckProposalTxVerifier(app.BaseApp))
+	legacyPrepareProposal := proposalHandler.PrepareProposalHandler()
+
+	// From the upstream-fixes activation height the proposer runs the same
+	// transaction checks as ProcessProposal while building a block, and skips
+	// transactions that fail them, so it never proposes a block that it (or
+	// any other validator) would reject. EVM transactions are tracked by
+	// sender and nonce, so a sender's later transactions are skipped once one
+	// of its transactions is left out.
+	verifyingProposalHandler := baseapp.NewDefaultProposalHandler(mempool, app.BaseApp)
+	verifyingProposalHandler.SetSignerExtractionAdapter(
+		evmmempool.NewEthSignerExtractionAdapter(sdkmempool.NewDefaultSignerExtractionAdapter()),
+	)
+	verifyingPrepareProposal := verifyingProposalHandler.PrepareProposalHandler()
+	prepareProposalHandler := func(ctx sdk.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
+		if !pqauthtypes.UpstreamFixesActive(req.Height) {
+			return legacyPrepareProposal(ctx, req)
+		}
+		return verifyingPrepareProposal(ctx, req)
+	}
+
+	// Upstream fix: verify the transactions of a proposal in ProcessProposal.
+	// Before the upstream-fixes activation height every proposal is accepted,
+	// as before (the handler set by BaseApp with the default no-op mempool).
+	verifyingProcessProposal := proposalHandler.ProcessProposalHandler()
+	processProposalHandler := func(ctx sdk.Context, req *abci.RequestProcessProposal) (*abci.ResponseProcessProposal, error) {
+		if !pqauthtypes.UpstreamFixesActive(req.Height) {
+			return &abci.ResponseProcessProposal{Status: abci.ResponseProcessProposal_ACCEPT}, nil
+		}
+		return verifyingProcessProposal(ctx, req)
+	}
 
 	insertTxHandler := mempool.NewInsertTxHandler(app.TxDecode)
 	reapTxsHandler := mempool.NewReapTxsHandler()
@@ -64,6 +96,7 @@ func (app *EVMD) configureEVMMempool(appOpts servertypes.AppOptions, logger log.
 
 	// set handlers and the mempool
 	app.SetPrepareProposal(prepareProposalHandler)
+	app.SetProcessProposal(processProposalHandler)
 	app.SetInsertTxHandler(insertTxHandler)
 	app.SetReapTxsHandler(reapTxsHandler)
 	app.SetCheckTxHandler(checkTxHandler)

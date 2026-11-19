@@ -139,3 +139,68 @@ func SetValidatorKeyGuardActivationHeightForTesting(height int64) (restore func(
 	validatorKeyGuardActivationHeight = height
 	return func() { validatorKeyGuardActivationHeight = prev }
 }
+
+// upstreamFixesActivationHeightValue is the first block height at which the
+// backported upstream cosmos/evm fixes that change transaction results apply
+// (QOM v1.0.2):
+//
+//   - x/vm: self-destruct refused for accounts with staking positions;
+//   - x/vm: module and blocked accounts refused as balance targets in the
+//     EVM state;
+//   - x/vm: gas of internal EVM calls capped by the remaining gas, and EVM gas
+//     charged when a state commit or flush fails;
+//   - x/vm: precompile call limit counted without wraparound;
+//   - x/vm: atomic state commit and checked balance addition;
+//   - eip712: unsupported sign-doc fields rejected;
+//   - x/feemarket: end-block gas values clamped;
+//   - ProcessProposal verifies proposed transactions, and PrepareProposal
+//     applies the same checks so a proposer never builds a block it rejects;
+//   - precompiles: bech32ToHex address length and ics02 empty client message
+//     checks;
+//   - ante: EIP-1559 tip cap clamped to the fee cap.
+//
+// Below the height every path is the v1.0.1 code path, including gas.
+//
+// Mainnet (qom_33303-1) activates at MainnetUpstreamFixesActivationHeight.
+// Override the height at build
+// time for devnets and tests,
+//
+//	go build -ldflags "-X github.com/cosmos/evm/x/pqauth/types.upstreamFixesActivationHeightValue=20" ./cmd/evmd
+//
+// ("disabled" never activates). evmd refuses to start on chain-id
+// qom_33303-1 unless the effective height equals
+// MainnetUpstreamFixesActivationHeight. Every node on a network must use the
+// same value.
+var upstreamFixesActivationHeightValue = "40000"
+
+// MainnetUpstreamFixesActivationHeight is the mainnet activation height of the
+// upstream fixes.
+const MainnetUpstreamFixesActivationHeight int64 = 40000
+
+var upstreamFixesActivationHeight = mustParseActivationHeight(upstreamFixesActivationHeightValue)
+
+// CheckUpstreamFixesActivationForChain returns an error when chainID is
+// mainnet and the effective upstream fixes activation height is not
+// MainnetUpstreamFixesActivationHeight.
+func CheckUpstreamFixesActivationForChain(chainID string) error {
+	if chainID == MainnetChainID && upstreamFixesActivationHeight != MainnetUpstreamFixesActivationHeight {
+		return fmt.Errorf("pqauth: this binary has upstream fixes activation height %d but %s requires %d; rebuild without the upstreamFixesActivationHeightValue override",
+			upstreamFixesActivationHeight, MainnetChainID, MainnetUpstreamFixesActivationHeight)
+	}
+	return nil
+}
+
+// UpstreamFixesActivationHeight returns the configured activation height, or
+// HardeningV2Disabled when the fixes never activate.
+func UpstreamFixesActivationHeight() int64 { return upstreamFixesActivationHeight }
+
+// UpstreamFixesActive reports whether the upstream fixes apply at height.
+func UpstreamFixesActive(height int64) bool { return height >= upstreamFixesActivationHeight }
+
+// SetUpstreamFixesActivationHeightForTesting overrides the activation height
+// and returns a function that restores the previous value. Tests only.
+func SetUpstreamFixesActivationHeightForTesting(height int64) (restore func()) {
+	prev := upstreamFixesActivationHeight
+	upstreamFixesActivationHeight = height
+	return func() { upstreamFixesActivationHeight = prev }
+}

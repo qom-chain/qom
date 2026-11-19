@@ -20,6 +20,7 @@ import (
 	rpctypes "github.com/cosmos/evm/rpc/types"
 	evmtrace "github.com/cosmos/evm/trace"
 	"github.com/cosmos/evm/utils"
+	pqauthtypes "github.com/cosmos/evm/x/pqauth/types"
 	"github.com/cosmos/evm/x/vm/statedb"
 	"github.com/cosmos/evm/x/vm/types"
 
@@ -562,10 +563,20 @@ func (k *Keeper) ApplyMessageWithConfig(ctx sdk.Context, stateDB *statedb.StateD
 		// Instead, we want to flush to the cacheCtx.
 		if callFromPrecompile {
 			if err := stateDB.FlushToCacheCtx(); err != nil {
+				// Upstream fix: the EVM work has already been performed, so
+				// charge the gas used (without refund) even though the flush
+				// failed.
+				if pqauthtypes.UpstreamFixesActive(ctx.BlockHeight()) {
+					ctx.GasMeter().ConsumeGas(maxUsedGas, "apply evm message")
+				}
 				return nil, errorsmod.Wrap(err, "failed to flush stateDB to cacheCtx")
 			}
 		} else {
 			if err := stateDB.Commit(); err != nil {
+				// See the comment on the FlushToCacheCtx error branch above.
+				if pqauthtypes.UpstreamFixesActive(ctx.BlockHeight()) {
+					ctx.GasMeter().ConsumeGas(maxUsedGas, "apply evm message")
+				}
 				return nil, errorsmod.Wrap(err, "failed to commit stateDB")
 			}
 		}

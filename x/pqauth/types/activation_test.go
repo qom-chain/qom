@@ -64,3 +64,30 @@ func TestCheckValidatorKeyGuardActivationForChain(t *testing.T) {
 	// The hardening v2 guard is not affected by this override.
 	require.NoError(t, CheckHardeningV2ActivationForChain(MainnetChainID))
 }
+
+func TestUpstreamFixesDefaultIsMainnetHeight(t *testing.T) {
+	require.Equal(t, MainnetUpstreamFixesActivationHeight, mustParseActivationHeight(upstreamFixesActivationHeightValue))
+	require.Equal(t, MainnetUpstreamFixesActivationHeight, UpstreamFixesActivationHeight())
+	require.NoError(t, CheckUpstreamFixesActivationForChain(MainnetChainID))
+	h := MainnetUpstreamFixesActivationHeight
+	require.False(t, UpstreamFixesActive(h-1))
+	require.True(t, UpstreamFixesActive(h))
+	// Later than the earlier activations, which are already live.
+	require.Greater(t, h, MainnetValidatorKeyGuardActivationHeight)
+	require.Greater(t, h, MainnetHardeningV2ActivationHeight)
+}
+
+func TestCheckUpstreamFixesActivationForChain(t *testing.T) {
+	restore := SetUpstreamFixesActivationHeightForTesting(40)
+	defer restore()
+	require.Error(t, CheckUpstreamFixesActivationForChain(MainnetChainID))
+	require.NoError(t, CheckUpstreamFixesActivationForChain("qom_9997-1"))
+	require.True(t, UpstreamFixesActive(40))
+	require.False(t, UpstreamFixesActive(39))
+	SetUpstreamFixesActivationHeightForTesting(HardeningV2Disabled)
+	require.Error(t, CheckUpstreamFixesActivationForChain(MainnetChainID))
+	require.False(t, UpstreamFixesActive(1<<62))
+	// The other guards are not affected by this override.
+	require.NoError(t, CheckHardeningV2ActivationForChain(MainnetChainID))
+	require.NoError(t, CheckValidatorKeyGuardActivationForChain(MainnetChainID))
+}

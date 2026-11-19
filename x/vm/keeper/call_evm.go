@@ -12,6 +12,7 @@ import (
 
 	"github.com/cosmos/evm/server/config"
 	evmtrace "github.com/cosmos/evm/trace"
+	pqauthtypes "github.com/cosmos/evm/x/pqauth/types"
 	"github.com/cosmos/evm/x/vm/statedb"
 	"github.com/cosmos/evm/x/vm/types"
 
@@ -73,6 +74,14 @@ func (k Keeper) CallEVMWithData(ctx sdk.Context, stateDB *statedb.StateDB, from 
 			if provided < gasLimit {
 				gasLimit = provided
 			}
+		}
+	}
+
+	// Upstream fix: cap the gas limit of this internal EVM call by the gas
+	// remaining on the transaction's Cosmos gas meter.
+	if pqauthtypes.UpstreamFixesActive(ctx.BlockHeight()) {
+		if remaining := ctx.GasMeter().GasRemaining(); remaining < gasLimit {
+			gasLimit = remaining
 		}
 	}
 

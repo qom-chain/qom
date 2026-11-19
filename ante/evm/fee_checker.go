@@ -7,6 +7,7 @@ import (
 
 	cosmosevmtypes "github.com/cosmos/evm/ante/types"
 	feemarkettypes "github.com/cosmos/evm/x/feemarket/types"
+	pqauthtypes "github.com/cosmos/evm/x/pqauth/types"
 	evmtypes "github.com/cosmos/evm/x/vm/types"
 
 	errorsmod "cosmossdk.io/errors"
@@ -100,7 +101,16 @@ func FeeChecker(
 	}
 
 	// calculate the effective gas price using the EIP-1559 logic.
-	effectivePrice := effectiveGasPriceLegacyDec(baseFee, feeCap, maxPriorityPrice)
+	var effectivePrice sdkmath.LegacyDec
+	if pqauthtypes.UpstreamFixesActive(ctx.BlockHeight()) {
+		// Upstream fix: clamp the tip cap to the fee cap and use the
+		// overflow-safe form, to keep the arithmetic in range. The result is
+		// the same whenever the old form does not overflow.
+		maxPriorityPrice = sdkmath.LegacyMinDec(maxPriorityPrice, feeCap)
+		effectivePrice = effectiveGasPriceLegacyDecClamped(baseFee, feeCap, maxPriorityPrice)
+	} else {
+		effectivePrice = effectiveGasPriceLegacyDec(baseFee, feeCap, maxPriorityPrice)
+	}
 
 	// NOTE: create a new coins slice without having to validate the denom
 	effectiveFee := sdk.Coins{
@@ -175,4 +185,14 @@ func getTxPriority(fees sdk.Coins, gas int64) int64 {
 // `effectiveGasPrice = min(baseFee + tipCap, feeCap)` using decimals
 func effectiveGasPriceLegacyDec(baseFee, feeCap, tipCap sdkmath.LegacyDec) sdkmath.LegacyDec {
 	return sdkmath.LegacyMinDec(tipCap.Add(baseFee), feeCap)
+}
+
+// effectiveGasPriceLegacyDecClamped computes the same value as
+// effectiveGasPriceLegacyDec, `min(baseFee + tipCap, feeCap)`, without forming
+// baseFee + tipCap directly, since tipCap may be near LegacyDec's upper limit.
+//
+// Precondition: feeCap >= baseFee. The caller rejects feeCap < baseFee with
+// ErrInsufficientFee ("gas prices too low") before invoking this helper.
+func effectiveGasPriceLegacyDecClamped(baseFee, feeCap, tipCap sdkmath.LegacyDec) sdkmath.LegacyDec {
+	return baseFee.Add(sdkmath.LegacyMinDec(tipCap, feeCap.Sub(baseFee)))
 }

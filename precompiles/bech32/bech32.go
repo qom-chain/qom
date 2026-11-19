@@ -10,6 +10,7 @@ import (
 
 	_ "embed"
 
+	pqauthtypes "github.com/cosmos/evm/x/pqauth/types"
 	evmtypes "github.com/cosmos/evm/x/vm/types"
 )
 
@@ -65,7 +66,7 @@ func (p Precompile) RequiredGas(_ []byte) uint64 {
 }
 
 // Run executes the precompiled contract bech32 methods defined in the ABI.
-func (p Precompile) Run(_ *vm.EVM, contract *vm.Contract, _ bool) (bz []byte, err error) {
+func (p Precompile) Run(evm *vm.EVM, contract *vm.Contract, _ bool) (bz []byte, err error) {
 	// NOTE: This check avoid panicking when trying to decode the method ID
 	if len(contract.Input) < 4 {
 		return nil, vm.ErrExecutionReverted
@@ -89,7 +90,10 @@ func (p Precompile) Run(_ *vm.EVM, contract *vm.Contract, _ bool) (bz []byte, er
 	case HexToBech32Method:
 		bz, err = p.HexToBech32(method, args)
 	case Bech32ToHexMethod:
-		bz, err = p.Bech32ToHex(method, args)
+		checkLength := evm != nil && evm.Context.BlockNumber != nil &&
+			evm.Context.BlockNumber.IsInt64() &&
+			pqauthtypes.UpstreamFixesActive(evm.Context.BlockNumber.Int64())
+		bz, err = p.bech32ToHex(method, args, checkLength)
 	}
 
 	if err != nil {

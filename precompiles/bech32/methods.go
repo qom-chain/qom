@@ -67,6 +67,17 @@ func (p Precompile) Bech32ToHex(
 	method *abi.Method,
 	args []interface{},
 ) ([]byte, error) {
+	return p.bech32ToHex(method, args, false)
+}
+
+// bech32ToHex implements Bech32ToHex. With checkLength set (from the
+// upstream-fixes activation height) it rejects addresses that are not
+// exactly 20 bytes long.
+func (p Precompile) bech32ToHex(
+	method *abi.Method,
+	args []interface{},
+	checkLength bool,
+) ([]byte, error) {
 	if len(args) != 1 {
 		return nil, fmt.Errorf(cmn.ErrInvalidNumberOfArgs, 1, len(args))
 	}
@@ -88,6 +99,12 @@ func (p Precompile) Bech32ToHex(
 
 	if err := sdk.VerifyAddressFormat(addressBz); err != nil {
 		return nil, err
+	}
+
+	// common.BytesToAddress would keep only the last 20 bytes of a longer address
+	// (or left-pad a shorter one), returning an unrelated address.
+	if checkLength && len(addressBz) != common.AddressLength {
+		return nil, fmt.Errorf("invalid bech32 address length: expected %d bytes, got %d", common.AddressLength, len(addressBz))
 	}
 
 	return method.Outputs.Pack(common.BytesToAddress(addressBz))

@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/core/vm"
 
+	pqauthtypes "github.com/cosmos/evm/x/pqauth/types"
 	clienttypes "github.com/cosmos/ibc-go/v11/modules/core/02-client/types"
 	commitmenttypesv2 "github.com/cosmos/ibc-go/v11/modules/core/23-commitment/types/v2"
 	host "github.com/cosmos/ibc-go/v11/modules/core/24-host"
@@ -54,6 +55,13 @@ func (p *Precompile) UpdateClient(
 	clientMsg, err := clienttypes.UnmarshalClientMessage(p.cdc, updateBz)
 	if err != nil {
 		return nil, err
+	}
+
+	// Upstream fix: UnmarshalClientMessage returns (nil, nil) for empty bytes or
+	// an Any with an empty type URL, so reject that here instead of calling
+	// ValidateBasic on nil.
+	if clientMsg == nil && pqauthtypes.UpstreamFixesActive(ctx.BlockHeight()) {
+		return nil, errorsmod.Wrap(clienttypes.ErrInvalidClientType, "client message cannot be empty")
 	}
 
 	if err := clientMsg.ValidateBasic(); err != nil {

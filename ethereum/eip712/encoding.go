@@ -253,3 +253,32 @@ func validatePayloadMessages(msgs []sdk.Msg) error {
 
 	return nil
 }
+
+// ProtobufSignDocHasUncoveredFields reports whether signDocBytes decode as a
+// Protobuf SignDoc that sets a field the EIP-712 typed data does not cover:
+// TimeoutTimestamp, Unordered, or a fee granter/payer. Such sign docs are
+// handled by the ante handler as described below.
+//
+// It is used by the ante handler, from the upstream-fixes activation height,
+// to reject such sign docs on the EIP-712 signature path.
+func ProtobufSignDocHasUncoveredFields(signDocBytes []byte) bool {
+	signDoc := &txTypes.SignDoc{}
+	if err := signDoc.Unmarshal(signDocBytes); err != nil {
+		return false
+	}
+
+	authInfo := &txTypes.AuthInfo{}
+	if err := authInfo.Unmarshal(signDoc.AuthInfoBytes); err != nil {
+		return false
+	}
+
+	body := &txTypes.TxBody{}
+	if err := body.Unmarshal(signDoc.BodyBytes); err != nil {
+		return false
+	}
+
+	return body.TimeoutTimestamp != nil ||
+		body.Unordered ||
+		authInfo.GetFee().GetGranter() != "" ||
+		authInfo.GetFee().GetPayer() != ""
+}

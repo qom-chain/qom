@@ -17,6 +17,7 @@ import (
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/holiman/uint256"
 
+	pqauthtypes "github.com/cosmos/evm/x/pqauth/types"
 	"github.com/cosmos/evm/x/vm/store/snapshotmulti"
 	vmstoretypes "github.com/cosmos/evm/x/vm/store/types"
 	"github.com/cosmos/evm/x/vm/types"
@@ -462,13 +463,21 @@ func (s *StateDB) AddPrecompileFn(snapshot int) error {
 	// Capture events before the precompile call
 	prevEvents := s.cacheCtx.EventManager().Events()
 
+	// Upstream fix: check the limit before updating the counter, so that
+	// rejected calls leave the counter unchanged.
+	// Reverted precompile calls still count against the limit.
+	fixed := pqauthtypes.UpstreamFixesActive(s.ctx.BlockHeight())
+	if fixed && s.precompileCallsCounter >= types.MaxPrecompileCalls {
+		return fmt.Errorf("max calls to precompiles (%d) reached", types.MaxPrecompileCalls)
+	}
+
 	s.journal.append(precompileCallChange{
 		snapshot:                snapshot,
 		prevEvents:              prevEvents,
 		prevProcessedEventCount: s.processedEventsCount,
 	})
 	s.precompileCallsCounter++
-	if s.precompileCallsCounter > types.MaxPrecompileCalls {
+	if !fixed && s.precompileCallsCounter > types.MaxPrecompileCalls {
 		return fmt.Errorf("max calls to precompiles (%d) reached", types.MaxPrecompileCalls)
 	}
 	return nil
@@ -717,10 +726,31 @@ func (s *StateDB) RevertToSnapshot(revid int) {
 func (s *StateDB) Commit() error {
 	// writeCache func will exist only when there's a call to a precompile.
 	// It applies all the store updates preformed by precompile calls.
-	if s.writeCache != nil {
-		s.writeCache()
+	if !pqauthtypes.UpstreamFixesActive(s.ctx.BlockHeight()) {
+		if s.writeCache != nil {
+			s.writeCache()
+		}
+		return s.commitWithCtx(s.ctx)
 	}
-	return s.commitWithCtx(s.ctx)
+
+	// Upstream fix: make the commit atomic.
+	if s.writeCache != nil {
+		// fold the remaining dirty set into the precompile cache so the
+		// state changes are atomic.
+		if err := s.commitWithCtx(s.cacheCtx); err != nil {
+			return err
+		}
+		s.writeCache()
+		return nil
+	}
+
+	// stage writes here so a late failure leaves s.ctx untouched.
+	cacheCtx, writeCache := s.ctx.CacheContext()
+	if err := s.commitWithCtx(cacheCtx); err != nil {
+		return err
+	}
+	writeCache()
+	return nil
 }
 
 // FlushToCacheCtx writes the dirty states to keeper using the cacheCtx.
