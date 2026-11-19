@@ -517,6 +517,14 @@ func NewExampleApp(
 		app.TransferKeeper,
 	)
 
+	// pqauth <-> EVM wiring. Do this before app.PQAuthKeeper or
+	// app.Erc20Keeper is copied into the module manager, the ante handler, or
+	// the IBC transfer stack. Registration refuses accounts with EVM code and
+	// deletes ERC-20 precompile allowances the account owns; the ERC-20
+	// precompile gates approve/transferFrom on the owner's EVM window.
+	app.PQAuthKeeper.SetEVMKeepers(app.EVMKeeper, &app.Erc20Keeper)
+	app.Erc20Keeper.SetPQAuthKeeper(app.PQAuthKeeper)
+
 	/*
 		Create Transfer Stack
 
