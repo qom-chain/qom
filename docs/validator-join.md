@@ -136,25 +136,29 @@ sudo apt-get update
 sudo apt-get install -y build-essential git curl jq patch python3
 ```
 
-Install Go 1.25.9. Any Go 1.21 or newer can fetch the exact toolchain by
-itself when `GOTOOLCHAIN` is set. Without a system Go, install 1.25.9 from
+Install Go 1.26.11. Any Go 1.21 or newer can fetch the exact toolchain by
+itself when `GOTOOLCHAIN` is set. Without a system Go, install 1.26.11 from
 go.dev:
 
 ```bash
-curl -fsSLO https://go.dev/dl/go1.25.9.linux-amd64.tar.gz
-sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go1.25.9.linux-amd64.tar.gz
+curl -fsSLO https://go.dev/dl/go1.26.11.linux-amd64.tar.gz
+sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go1.26.11.linux-amd64.tar.gz
 export PATH=/usr/local/go/bin:$PATH
 ```
 
 Set the build environment. These values are part of the release recipe:
 
 ```bash
-export GOTOOLCHAIN=go1.25.9
+export GOTOOLCHAIN=go1.26.11
 export CGO_ENABLED=1
 export GOMODCACHE=/var/tmp/qom-gomodcache
 go version
-# go version go1.25.9 linux/amd64
+# go version go1.26.11 linux/amd64
 ```
+
+`go.mod` still declares `go 1.25.9`. That is intended: the release is built
+with the Go 1.26.11 toolchain set by `GOTOOLCHAIN`, and the `go.mod` line
+is left unchanged.
 
 `GOMODCACHE` must be exactly `/var/tmp/qom-gomodcache`. One dependency
 records that path in the binary, so another path builds a binary that
@@ -177,7 +181,7 @@ Clone the repository and check out the release:
 mkdir -p ~/qom-build && cd ~/qom-build
 git clone https://github.com/qom-chain/qom.git
 cd qom
-git checkout qom-v1.0.0
+git checkout qom-v1.0.1
 ```
 
 The release uses CometBFT v0.39.3 and Cosmos SDK v0.54.3 with two small
@@ -206,7 +210,7 @@ sha256sum build/evmd
 The SHA-256 must be:
 
 ```text
-411d48b335215bd629f31b3303b0cccb5a67373a1426cf520e8e36537f25e7e2
+b1d311a17600f4f0874100d771fc9fa762347df8b00aab5d556b21f57d5626eb
 ```
 
 This hash was reproduced on Debian 13 (gcc 14.2, GNU binutils 2.44). A
@@ -224,7 +228,7 @@ sudo install -m 0755 build/evmd /usr/local/bin/evmd
 sha256sum /usr/local/bin/evmd
 evmd version --long | grep -E '^(cosmos_sdk_version|go):'
 # cosmos_sdk_version: v0.54.3
-# go: go version go1.25.9 linux/amd64
+# go: go version go1.26.11 linux/amd64
 ```
 
 `evmd version` prints an empty version string for this release. Use the
@@ -262,7 +266,7 @@ and `config/node_key.json` (your P2P identity). Back them up in section 7.
 Install the mainnet genesis and check it:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/qom-chain/qom/qom-v1.0.0/evmd/qom_33303-1-genesis.json \
+curl -fsSL https://raw.githubusercontent.com/qom-chain/qom/qom-v1.0.1/evmd/qom_33303-1-genesis.json \
   -o "$QOM_HOME/config/genesis.json"
 echo "51f77bb2646e5a768562e5827c50b2416726c9a6a6249772e9baa5d27644a1bd  $QOM_HOME/config/genesis.json" | sha256sum -c -
 evmd genesis validate --home "$QOM_HOME"
