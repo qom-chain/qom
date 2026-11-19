@@ -91,7 +91,7 @@ placeholder because no public peer address was set at genesis. Peers dial
 
 Every node on `qom_33303-1` must run the release binary. Build it exactly as
 described in [validator-join.md, section 3](validator-join.md#3-build-the-release-binary):
-Go 1.25.9, `CGO_ENABLED=1`, `GOMODCACHE=/var/tmp/qom-gomodcache`, the
+Go 1.26.11, `CGO_ENABLED=1`, `GOMODCACHE=/var/tmp/qom-gomodcache`, the
 patched CometBFT and Cosmos SDK trees from `scripts/prepare-evmd-build.sh`,
 `go build -trimpath -buildvcs=false`, then `strip`. The section lists the
 release SHA-256.
