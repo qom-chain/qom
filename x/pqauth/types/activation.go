@@ -19,14 +19,25 @@ import (
 //
 // Below the height every path is the 32ee354 code path, including gas.
 //
-// The value is fixed at build time and every node on the network must use the
-// same value. Set it with
+// Mainnet (qom_33303-1) activates at MainnetHardeningV2ActivationHeight
+// (52500, approved Nov 18 2026), which is the hardcoded default: a plain
+// `go build ./cmd/evmd` is the correct mainnet binary and needs no flag.
 //
-//	go build -ldflags "-X github.com/cosmos/evm/x/pqauth/types.hardeningV2ActivationHeightValue=34000" ./cmd/evmd
+// The value can still be overridden at build time for devnets and tests,
 //
-// or by editing the default below. "disabled" (the default) never activates,
-// so a binary built without the flag behaves exactly like 32ee354.
-var hardeningV2ActivationHeightValue = "disabled"
+//	go build -ldflags "-X github.com/cosmos/evm/x/pqauth/types.hardeningV2ActivationHeightValue=20" ./cmd/evmd
+//
+// ("disabled" never activates). To rule out a misbuilt mainnet binary, evmd
+// refuses to start on chain-id qom_33303-1 unless the effective height equals
+// MainnetHardeningV2ActivationHeight (see CheckHardeningV2ActivationForChain).
+// Every node on a network must use the same value.
+var hardeningV2ActivationHeightValue = "52500"
+
+// MainnetChainID is the QOM mainnet cosmos chain-id.
+const MainnetChainID = "qom_33303-1"
+
+// MainnetHardeningV2ActivationHeight is the approved mainnet activation height.
+const MainnetHardeningV2ActivationHeight int64 = 52500
 
 // HardeningV2Disabled is the activation height used when the rules are off.
 const HardeningV2Disabled int64 = math.MaxInt64
@@ -43,6 +54,16 @@ func mustParseActivationHeight(v string) int64 {
 		panic(fmt.Sprintf("pqauth: invalid hardening v2 activation height %q (build flag -X ...hardeningV2ActivationHeightValue): want a non-negative integer or \"disabled\"", v))
 	}
 	return h
+}
+
+// CheckHardeningV2ActivationForChain returns an error when chainID is mainnet
+// and the effective activation height is not MainnetHardeningV2ActivationHeight.
+func CheckHardeningV2ActivationForChain(chainID string) error {
+	if chainID == MainnetChainID && hardeningV2ActivationHeight != MainnetHardeningV2ActivationHeight {
+		return fmt.Errorf("pqauth: this binary has hardening v2 activation height %d but %s requires %d; rebuild without the hardeningV2ActivationHeightValue override",
+			hardeningV2ActivationHeight, MainnetChainID, MainnetHardeningV2ActivationHeight)
+	}
+	return nil
 }
 
 // HardeningV2ActivationHeight returns the configured activation height, or
