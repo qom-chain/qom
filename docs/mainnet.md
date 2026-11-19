@@ -85,42 +85,23 @@ Gentx memo: `25c9967d869feb5340d85c01cfa16ff1d1591632@0.0.0.0:26656`
 
 The memo is inside the signed gentx. Leave it unchanged. `0.0.0.0` is a
 placeholder because no public peer address was set at genesis. Peers dial
-`25c9967d869feb5340d85c01cfa16ff1d1591632@HOST:26656` after the genesis
-validator publishes `HOST`. Set that node's CometBFT `external_address` to
-the same `HOST:26656`.
+`25c9967d869feb5340d85c01cfa16ff1d1591632@p2p.qomx.io:26656`.
 
 ## Build
 
-Live mainnet (`qom_33303-1`) requires the round-aware evmd build. Vote
-extensions are signed and verified with the actual CometBFT vote round and
-vote type (precommit). Every validator must run this patched build.
-**Mixing a stock CometBFT evmd with a patched validator set halts the
-chain at round ≥ 1.** Full nodes that are not in the validator set should
-still run the same build so they compile and start (the startup guard
-refuses a binary built against stock CometBFT).
+Every node on `qom_33303-1` must run the release binary. Build it exactly as
+described in [validator-join.md, section 3](validator-join.md#3-build-the-release-binary):
+Go 1.25.9, `CGO_ENABLED=1`, `GOMODCACHE=/var/tmp/qom-gomodcache`, the
+patched CometBFT and Cosmos SDK trees from `scripts/prepare-evmd-build.sh`,
+`go build -trimpath -buildvcs=false`, then `strip`. The section lists the
+release SHA-256.
 
-From the repository root, with `CGO_ENABLED=1` and Go 1.25.9:
-
-```bash
-# Prepares uncommitted local trees and relative evmd/go.mod replaces:
-#   ../src-voteext/cometbft-v0.39.3-voteext   (scripts/cometbft-voteext.patch)
-#   ../src-voteext/cosmos-sdk-v0.54.3-qomx    (scripts/cosmos-sdk-v0.54.3-clifix.patch)
-# The src-voteext directory name is recorded in the binary and is required
-# to reproduce the live mainnet evmd hash.
-sh scripts/prepare-evmd-build.sh
-cd evmd && go build -trimpath -buildvcs=false -ldflags="-s -w" ./cmd/evmd
-git checkout -- go.mod go.sum   # do not commit the local replaces
-```
-
-`-buildvcs=false` keeps the binary hash independent of whether the
-sources sit in a git checkout. `TMPDIR` must point at a disk-backed
-directory if `/tmp` is a small tmpfs; the build needs several GB of
-temp space.
-
-A binary built without the CometBFT patch will not compile (`evmd`
-references `QOMXABCIVoteExtensionRoundPatched`). If the ABCI request
-types somehow lack a `Round` field, `evmd start` refuses to launch.
-See `docs/voteext-round-aware-cutover.md`.
+The release carries round-aware vote extensions: they are signed and
+verified with the actual CometBFT vote round and vote type. A binary built
+against stock CometBFT does not compile (`evmd` references
+`QOMXABCIVoteExtensionRoundPatched`), and a validator set that mixes
+patched and stock nodes stops at round 1 or higher. See
+`docs/voteext-round-aware-cutover.md`.
 
 ## Add QOM to MetaMask
 
@@ -191,17 +172,17 @@ Default ports on a dedicated host are P2P `26656`, Comet RPC `26657`, and
 JSON-RPC `8545`. To publish JSON-RPC, set `--json-rpc.address 0.0.0.0:8545`
 and put a reverse proxy in front of it.
 
-Peer configuration, once the genesis validator announces a public host:
+Peer configuration:
 
 ```toml
 # config.toml
-external_address = "HOST:26656"
-persistent_peers = "25c9967d869feb5340d85c01cfa16ff1d1591632@HOST:26656"
+persistent_peers = "25c9967d869feb5340d85c01cfa16ff1d1591632@p2p.qomx.io:26656"
+external_address = "YOUR_PUBLIC_IP:26656"   # only if peers should dial you
 ```
 
-Or pass `--p2p.external-address HOST:26656` on the genesis validator. A full
-node that only copies the genesis gets its own node key. It does not use the
-genesis validator's `priv_validator_key.json`.
+A full node that only copies the genesis gets its own node key. It does not
+use the genesis validator's `priv_validator_key.json`. Mainnet does not
+publish state-sync snapshots; new nodes sync from genesis.
 
 ## Genesis validator
 
@@ -226,132 +207,28 @@ up the three key files and the account keyring. Replacing
 `data/priv_validator_state.json`, which is a separate recovery step and
 is not part of a normal start.
 
-Set `external_address` on this node to the public `HOST:26656` that peers
+Set `external_address` on this node to the public `p2p.qomx.io:26656` that peers
 should dial. The signed gentx memo stays `0.0.0.0`.
 
 ## Become a validator
 
-Sync a full node first. Fund an ethsecp256k1 account with the stake plus
-about 100 QOMX of liquid tokens for fees. Use
-`--gas auto --gas-adjustment 1.1 --gas-prices 47619047619048aqomx`.
-A normal transaction such as `create-validator` is typically about
-90-100k gas (about 4-5 QOMX at the floor). A PQ transaction from a
-registered account is typically about 397k gas (about 19-20 QOMX).
-These figures are approximate and depend on state. Fees will drop if
-governance lowers the fee-market floor.
+Follow [docs/validator-join.md](validator-join.md). It covers the build,
+node setup, key security, and the single transaction that creates the
+validator and registers its ML-DSA-87 key. From block 34000, a validator
+that would enter the active set without a registered ML-DSA-87 key is
+jailed in the same block, so do not send `create-validator` on its own.
 
-Create the validator with the secp256k1 key while the account has no
-account-level ML-DSA key yet. Then register the consensus ML-DSA key.
-Registering the account key first forces every later Cosmos transaction,
-including `create-validator`, through hybrid signing. The CLI cannot
-produce ML-DSA account signatures on ordinary `evmd tx` commands.
+## Account-level ML-DSA-87 (hybrid accounts)
 
-```bash
-evmd keys add validator --keyring-backend file --home "$HOME_DIR"
-
-evmd comet show-validator --home "$HOME_DIR"
-```
-
-Write `validator.json` with the pubkey from that command. `amount` is the
-self-delegation in aqomx, for example 1,000 QOMX:
-
-```json
-{
-  "pubkey": {"@type":"/cosmos.crypto.ed25519.PubKey","key":"<from comet show-validator>"},
-  "amount": "1000000000000000000000aqomx",
-  "moniker": "your-moniker",
-  "identity": "",
-  "website": "",
-  "security": "",
-  "details": "",
-  "commission-rate": "0.1",
-  "commission-max-rate": "0.2",
-  "commission-max-change-rate": "0.01",
-  "min-self-delegation": "1"
-}
-```
-
-```bash
-evmd tx staking create-validator validator.json \
-  --from validator \
-  --keyring-backend file \
-  --chain-id "$CHAIN_ID" \
-  --gas auto \
-  --gas-adjustment 1.1 \
-  --gas-prices 47619047619048aqomx \
-  --home "$HOME_DIR"
-
-# 20-byte consensus address, hex, from config/priv_validator_key.json "address"
-evmd tx pqauth gen-mldsa-key "$HOME_DIR/config/mldsa_priv_validator_key.json"
-
-evmd tx pqauth register-validator-mldsa-key "$CONSENSUS_HEX" \
-  --from validator \
-  --key-file "$HOME_DIR/config/mldsa_priv_validator_key.json" \
-  --keyring-backend file \
-  --chain-id "$CHAIN_ID" \
-  --gas auto \
-  --gas-adjustment 1.1 \
-  --gas-prices 47619047619048aqomx \
-  --home "$HOME_DIR"
-```
-
-If `config/mldsa_priv_validator_key.json` already exists because the node
-started once, skip `gen-mldsa-key` and register that file. Replacing an
-existing on-chain consensus key needs `--old-key-file` as well.
-
-Vote extensions are checked against the on-chain key. Register it in the
-same window as `create-validator`. `signed_blocks_window` is 100 blocks.
-
-Account-level ML-DSA is separate and optional. It uses its own key file.
-Keep that file out of the repository.
-
-```bash
-evmd tx pqauth gen-mldsa-key "$HOME_DIR/account-mldsa.json"
-chmod 600 "$HOME_DIR/account-mldsa.json"
-
-evmd tx pqauth register-mldsa-key \
-  --from validator \
-  --key-file "$HOME_DIR/account-mldsa.json" \
-  --keyring-backend file \
-  --chain-id "$CHAIN_ID" \
-  --gas auto \
-  --gas-adjustment 1.1 \
-  --gas-prices 47619047619048aqomx \
-  --home "$HOME_DIR"
-```
-
-After that registration, Cosmos transactions from the account need both
-signatures. The CLI attaches ML-DSA only for `--from`:
-
-```bash
-evmd tx bank send validator cosmos1... 1000000000000000000aqomx \
-  --from validator \
-  --keyring-backend file \
-  --chain-id "$CHAIN_ID" \
-  --gas auto \
-  --gas-adjustment 1.1 \
-  --gas-prices 47619047619048aqomx \
-  --generate-only \
-  --home "$HOME_DIR" > unsigned.json
-
-evmd tx pqauth sign unsigned.json \
-  --from validator \
-  --key-file "$HOME_DIR/account-mldsa.json" \
-  --keyring-backend file \
-  --chain-id "$CHAIN_ID" \
-  --home "$HOME_DIR" > signed.json
-
-evmd tx broadcast signed.json --home "$HOME_DIR" --chain-id "$CHAIN_ID"
-```
-
-Use `--gas auto --gas-adjustment 1.1 --gas-prices 47619047619048aqomx`.
-A hybrid bank send from a registered account is typically about 397k gas
-(about 19-20 QOMX at the floor). A limit of 300,000 runs out of gas in
-ante, before the ML-DSA signature is checked.
-
-Open the EVM window with a hybrid-signed `MsgOpenEVMWindow` after the account
-key is registered. The window stays open for 1000 blocks from the block that
-includes the transaction. Query it with:
+An account can register its own ML-DSA-87 key with
+`evmd tx pqauth register-mldsa-key`. After that, every Cosmos transaction
+from the account needs both signatures (`--generate-only`, then
+`evmd tx pqauth sign`, then `evmd tx broadcast`), and EVM transactions from
+it go through only while its EVM window is open
+(`evmd tx pqauth open-evm-window`, 1000 blocks). Registration is permanent
+and the key file cannot be recovered if lost. See
+[validator-join.md, section 13](validator-join.md#13-post-quantum-registration-for-the-operator-account-optional)
+for the commands.
 
 ```bash
 evmd query pqauth evm-window "$ACCOUNT" --home "$HOME_DIR"

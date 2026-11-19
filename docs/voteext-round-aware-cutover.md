@@ -49,10 +49,9 @@ Recommended steps:
    commit heights at round ≥ 1 and continue; a 2-validator stock-CometBFT
    set must halt at round ≥ 1; a mixed patched+stock set must break;
    missing or mismatched bound ML-DSA key files must refuse to start).
-2. Build with `scripts/prepare-evmd-build.sh` and
-   `cd evmd && go build -trimpath -buildvcs=false -ldflags="-s -w" ./cmd/evmd`.
-   The prepare script writes `../src-voteext/...` trees so the binary
-   hash matches the live mainnet build. Record the sha256.
+2. Build the release binary as in `docs/validator-join.md` section 3
+   (`scripts/prepare-evmd-build.sh`, `go build -trimpath -buildvcs=false`,
+   then `strip`). Record the sha256.
 3. Copy the running `evmd` to a dated backup. Do not overwrite earlier
    backups.
 4. Stop the node, install the new binary, start the node.
