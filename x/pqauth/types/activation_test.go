@@ -8,11 +8,11 @@ import (
 
 func TestHardeningV2DefaultIsMainnetHeight(t *testing.T) {
 	// The source default (no -X override) must be the approved mainnet height.
-	require.Equal(t, MainnetHardeningV2ActivationHeight, mustParseActivationHeight("52500"))
-	require.Equal(t, "52500", hardeningV2ActivationHeightValue)
-	require.Equal(t, int64(52500), MainnetHardeningV2ActivationHeight)
-	require.False(t, HardeningV2Active(52499))
-	require.True(t, HardeningV2Active(52500))
+	require.Equal(t, MainnetHardeningV2ActivationHeight, mustParseActivationHeight("33000"))
+	require.Equal(t, "33000", hardeningV2ActivationHeightValue)
+	require.Equal(t, int64(33000), MainnetHardeningV2ActivationHeight)
+	require.False(t, HardeningV2Active(32999))
+	require.True(t, HardeningV2Active(33000))
 	require.NoError(t, CheckHardeningV2ActivationForChain(MainnetChainID))
 }
 

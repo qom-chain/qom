@@ -20,7 +20,7 @@ import (
 // Below the height every path is the 32ee354 code path, including gas.
 //
 // Mainnet (qom_33303-1) activates at MainnetHardeningV2ActivationHeight
-// (52500, approved Nov 18 2026), which is the hardcoded default: a plain
+// (33000, approved Nov 19 2026), which is the hardcoded default: a plain
 // `go build ./cmd/evmd` is the correct mainnet binary and needs no flag.
 //
 // The value can still be overridden at build time for devnets and tests,
@@ -31,13 +31,13 @@ import (
 // refuses to start on chain-id qom_33303-1 unless the effective height equals
 // MainnetHardeningV2ActivationHeight (see CheckHardeningV2ActivationForChain).
 // Every node on a network must use the same value.
-var hardeningV2ActivationHeightValue = "52500"
+var hardeningV2ActivationHeightValue = "33000"
 
 // MainnetChainID is the QOM mainnet cosmos chain-id.
 const MainnetChainID = "qom_33303-1"
 
 // MainnetHardeningV2ActivationHeight is the approved mainnet activation height.
-const MainnetHardeningV2ActivationHeight int64 = 52500
+const MainnetHardeningV2ActivationHeight int64 = 33000
 
 // HardeningV2Disabled is the activation height used when the rules are off.
 const HardeningV2Disabled int64 = math.MaxInt64
