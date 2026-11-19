@@ -25,6 +25,8 @@ type Keeper struct {
 	authz         AuthzKeeper
 	fees          FeeAllowanceRevoker
 	staking       StakingKeeper
+	evm           EVMCodeKeeper
+	erc20         ERC20AllowanceKeeper
 }
 
 // NewKeeper returns a pqauth keeper.
