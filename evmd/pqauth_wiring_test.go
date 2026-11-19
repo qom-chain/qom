@@ -28,6 +28,7 @@ func TestPQAuthEVMWiring(t *testing.T) {
 	// Setup seals process-wide EVM coin config; reset it so later tests in
 	// this package can build their own app.
 	t.Cleanup(func() { evmtypes.NewEVMConfigurator().ResetTestConfig() })
+	t.Cleanup(pqauthtypes.SetHardeningV2ActivationHeightForTesting(0))
 	chain := testconstants.ExampleChainID
 	app := Setup(t, chain.ChainID, chain.EVMChainID)
 	ctx := app.NewContextLegacy(false, cmtproto.Header{ChainID: chain.ChainID, Height: 10})

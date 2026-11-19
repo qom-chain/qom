@@ -110,10 +110,32 @@ func (b *Backend) checkPQAuthEVMWindowWith(ctx context.Context, lookup pqAuthLoo
 // unfunded sender cannot make the node recover signatures and run pqauth
 // queries for a long authorisation list.
 func (b *Backend) checkPQAuthSetCodeAuthorities(ctx context.Context, from common.Address, tx *ethtypes.Transaction) error {
-	return b.checkPQAuthSetCodeAuthoritiesWith(ctx, b.pqAuthLookup(), from, tx)
+	if tx == nil || len(tx.SetCodeAuthorizations()) == 0 {
+		return nil
+	}
+	return b.checkPQAuthSetCodeAuthoritiesWith(ctx, b.pqAuthLookup(), from, tx, b.hardeningV2ActiveForNextBlock(ctx))
 }
 
-func (b *Backend) checkPQAuthSetCodeAuthoritiesWith(ctx context.Context, lookup pqAuthLookup, from common.Address, tx *ethtypes.Transaction) error {
+// hardeningV2ActiveForNextBlock reports whether the pqauth hardening v2 rules
+// will apply to the next block. If the height is unknown it returns false, so
+// the pre-check is never stricter than the ante handler.
+func (b *Backend) hardeningV2ActiveForNextBlock(ctx context.Context) bool {
+	if pqauthtypes.HardeningV2ActivationHeight() == pqauthtypes.HardeningV2Disabled {
+		return false
+	}
+	if b.QueryClient == nil || b.QueryClient.QueryClient == nil {
+		return false
+	}
+	latest, err := b.BlockNumber(ctx)
+	if err != nil {
+		return false
+	}
+	return pqauthtypes.HardeningV2Active(int64(latest) + 1) //#nosec G115 -- block height fits int64
+}
+
+// checkPQAuthSetCodeAuthoritiesWith runs the SetCode pre-check. hardened
+// selects the hardening v2 target rule (registered authority may only clear).
+func (b *Backend) checkPQAuthSetCodeAuthoritiesWith(ctx context.Context, lookup pqAuthLookup, from common.Address, tx *ethtypes.Transaction, hardened bool) error {
 	if tx == nil || len(tx.SetCodeAuthorizations()) == 0 {
 		return nil
 	}
@@ -136,7 +158,7 @@ func (b *Backend) checkPQAuthSetCodeAuthoritiesWith(ctx context.Context, lookup 
 		if !registered {
 			continue
 		}
-		if auth.Address != (common.Address{}) {
+		if hardened && auth.Address != (common.Address{}) {
 			return fmt.Errorf(
 				"EIP-7702 authority: pq-auth: ML-DSA registered account %s may only sign a SetCode authorisation that clears delegation (target 0x0000000000000000000000000000000000000000), not delegate to %s",
 				account, auth.Address.Hex(),
