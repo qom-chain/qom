@@ -32,6 +32,9 @@ const testChainID = "qomx-test"
 
 type nopAuthz struct{}
 
+func (nopAuthz) IterateGrants(context.Context, func(sdk.AccAddress, sdk.AccAddress, authz.Grant) bool) {
+}
+
 func (nopAuthz) GranterGrants(context.Context, *authz.QueryGranterGrantsRequest) (*authz.QueryGranterGrantsResponse, error) {
 	return &authz.QueryGranterGrantsResponse{}, nil
 }
@@ -60,6 +63,16 @@ type storedGrant struct {
 type memAuthz struct {
 	grants         []storedGrant
 	granterQueries int
+	fullScans      int
+}
+
+func (m *memAuthz) IterateGrants(_ context.Context, handler func(sdk.AccAddress, sdk.AccAddress, authz.Grant) bool) {
+	m.fullScans++
+	for _, grant := range m.grants {
+		if handler(grant.granter, grant.grantee, grant.grant) {
+			return
+		}
+	}
 }
 
 // GranterGrants returns the granter's grants one at a time, so the keeper's
