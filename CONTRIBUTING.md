@@ -1,13 +1,18 @@
-# Contributing to Cosmos EVM
+# Contributing to QOM
 
 We appreciate community contributions! To ensure a smooth process, please follow these guidelines.
+
+Report security problems privately as described in [SECURITY.md](SECURITY.md),
+not in issues or pull requests. Changes to consensus code (anything that can
+change state, gas, or block validity) need a coordinated release with an
+activation height; see [docs/validator-join.md](docs/validator-join.md#14-day-to-day-operation-and-upgrades).
 
 ---
 
 ## Requirements for Pull Requests
 
 1. **Issue Link Required**
-   - All pull requests must be linked to an existing [GitHub Issue](https://github.com/cosmos/evm/issues).
+   - All pull requests must be linked to an existing [GitHub Issue](https://github.com/qom-chain/qom/issues).
    - PRs without a corresponding issue **will not be reviewed**.
    - Issues should include:
       - **Reproducibility**: If the issue is a bug, describe steps to reproduce the problem clearly.
@@ -38,4 +43,4 @@ We appreciate community contributions! To ensure a smooth process, please follow
 
 ---
 
-Thank you for helping improve Cosmos EVM!
+Thank you for helping improve QOM!

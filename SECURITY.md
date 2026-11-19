@@ -1,64 +1,35 @@
-# Coordinated Vulnerability Disclosure Policy
+# Security policy
 
-The Cosmos ecosystem believes that strong security is a blend of highly
-technical security researchers who care about security and the forward
-progression of the ecosystem and the attentiveness and openness of Cosmos core
-contributors to help continually secure our operations.
+**Do not open public issues, pull requests, or discussions for security
+vulnerabilities.**
 
-> **IMPORTANT**: *DO NOT* open public issues on this repository for security
-> vulnerabilities.
+## Reporting a vulnerability in QOM
+
+Report privately through GitHub: open the repository's **Security** tab
+and choose **Report a vulnerability**
+(<https://github.com/qom-chain/qom/security/advisories/new>).
+
+Please include:
+
+- the affected component (for example `x/pqauth`, the ante handlers, the
+  vote-extension code, JSON-RPC, or a precompile),
+- the release or commit you tested,
+- steps to reproduce, and the impact you expect.
+
+We will acknowledge your report and keep you informed while we work on a
+fix. Please give us reasonable time to fix
+the issue and upgrade the network before any public disclosure.
 
 ## Scope
 
-| Scope                 |
-|-----------------------|
-| last release (tagged) |
-| main branch           |
+- The latest release tag and the `main` branch of this repository.
+- The QOM mainnet (`qom_33303-1`) protocol rules implemented here.
 
-The latest **release tag** of this repository is supported for security updates
-as well as the **main** branch. Security vulnerabilities should be reported if
-the vulnerability can be reproduced on either one of those.
+Testing must not disrupt QOM mainnet, its validators, or its users. Use a
+local devnet.
 
-## Reporting a Vulnerability
+## Upstream components
 
-| Reporting methods                                             | Bounty eligible |
-|---------------------------------------------------------------|-----------------|
-| [HackerOne program][h1]                                       |       no        |
-| [security@cosmoslabs.io](mailto:security@cosmoslabs.io)       |       no        |
-
-Issues identified in this repository may be eligible for a [bug bounty][h1]. For your report to be bounty
-eligible it must be reported exclusively through the [HackerOne Bug Bounty][h1].
-
-If you do not wish to be eligible for a bounty or do not want to use the HackerOne platform to report an
-issue, please send your report via email to [security@cosmoslabs.io](mailto:security@cosmoslabs.io) with
-reproduction steps and details of the issue.
-
-### Guidelines
-
-We require that all researchers:
-
-* Abide by this policy to disclose vulnerabilities, and avoid posting
-  vulnerability information in public places, including GitHub, Discord,
-  Telegram, and Twitter.
-* Make every effort to avoid privacy violations, degradation of user experience,
-  disruption to production systems (including but not limited to the Cosmos
-  Hub), and destruction of data.
-* Keep any information about vulnerabilities that you’ve discovered confidential
-  between yourself and the Cosmos engineering team until the issue has been
-  resolved and disclosed.
-* Avoid posting personally identifiable information, privately or publicly.
-
-If you follow these guidelines when reporting an issue to us, we commit to:
-
-* Not pursue or support any legal action related to your research on this
-  vulnerability
-* Work with you to understand, resolve and ultimately disclose the issue in a
-  timely fashion
-
-### More information
-
-* See [EXAMPLES.md] for some of the examples that we are interested in for the
-  bug bounty program.
-
-[h1]: https://hackerone.com/cosmos
-[EXAMPLES.md]: https://github.com/cosmos/security/blob/main/resources/CLASSIFICATION_MATRIX.md#real-world-examples
+QOM is built on Cosmos EVM, Cosmos SDK, CometBFT, and go-ethereum. If a
+vulnerability is in unmodified upstream code, also report it to that
+project through its own security policy.
