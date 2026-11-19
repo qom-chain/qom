@@ -33,9 +33,14 @@ func TestMustParseActivationHeight(t *testing.T) {
 	require.Panics(t, func() { mustParseActivationHeight("abc") })
 }
 
-func TestValidatorKeyGuardDefaultIsMainnetPlaceholder(t *testing.T) {
-	// The source default (no -X override) must equal the mainnet constant, so
-	// a plain build passes the mainnet start guard.
+func TestValidatorKeyGuardDefaultIsMainnetHeight(t *testing.T) {
+	// The source default (no -X override) must be the approved mainnet height,
+	// so a plain build passes the mainnet start guard.
+	require.Equal(t, MainnetValidatorKeyGuardActivationHeight, mustParseActivationHeight("34000"))
+	require.Equal(t, "34000", validatorKeyGuardActivationHeightValue)
+	require.Equal(t, int64(34000), MainnetValidatorKeyGuardActivationHeight)
+	require.False(t, ValidatorKeyGuardActive(33999))
+	require.True(t, ValidatorKeyGuardActive(34000))
 	require.Equal(t, MainnetValidatorKeyGuardActivationHeight, mustParseActivationHeight(validatorKeyGuardActivationHeightValue))
 	require.Equal(t, MainnetValidatorKeyGuardActivationHeight, ValidatorKeyGuardActivationHeight())
 	require.NoError(t, CheckValidatorKeyGuardActivationForChain(MainnetChainID))

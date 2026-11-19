@@ -142,7 +142,7 @@ func TestValidatorKeyGuardInactiveBelowHeight(t *testing.T) {
 	k.SetValidatorSetKeeper(nil)
 	require.NoError(t, k.EnforceValidatorMLDSAKeys(ctx))
 
-	// The build default (mainnet placeholder) is far in the future.
+	// The build default (mainnet height) does not apply one block early.
 	types.SetValidatorKeyGuardActivationHeightForTesting(types.MainnetValidatorKeyGuardActivationHeight)
 	k.SetValidatorSetKeeper(vs)
 	require.NoError(t, k.EnforceValidatorMLDSAKeys(ctx.WithBlockHeight(types.MainnetValidatorKeyGuardActivationHeight-1)))

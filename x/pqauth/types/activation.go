@@ -103,17 +103,14 @@ func SetHardeningV2ActivationHeightForTesting(height int64) (restore func()) {
 // MainnetValidatorKeyGuardActivationHeight. Every node on a network must use
 // the same value.
 //
-// TODO(mainnet): the default below is a far-future placeholder. Set it and
-// MainnetValidatorKeyGuardActivationHeight to the approved mainnet height
-// before building a mainnet binary.
-var validatorKeyGuardActivationHeightValue = "100000000"
+// Mainnet (qom_33303-1) activates at MainnetValidatorKeyGuardActivationHeight
+// (34000, approved Nov 19 2026), which is the hardcoded default: a plain
+// `go build ./cmd/evmd` is the correct mainnet binary and needs no flag.
+var validatorKeyGuardActivationHeightValue = "34000"
 
 // MainnetValidatorKeyGuardActivationHeight is the mainnet activation height of
 // the validator ML-DSA key guard.
-//
-// TODO(mainnet): placeholder (block 100,000,000, years away at 5 s blocks).
-// Replace with the approved height together with the default above.
-const MainnetValidatorKeyGuardActivationHeight int64 = 100_000_000
+const MainnetValidatorKeyGuardActivationHeight int64 = 34000
 
 var validatorKeyGuardActivationHeight = mustParseActivationHeight(validatorKeyGuardActivationHeightValue)
 
