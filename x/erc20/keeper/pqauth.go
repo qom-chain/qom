@@ -4,6 +4,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/cosmos/evm/x/erc20/types"
+	pqauthtypes "github.com/cosmos/evm/x/pqauth/types"
 
 	errorsmod "cosmossdk.io/errors"
 
@@ -24,9 +25,10 @@ func (k *Keeper) SetPQAuthKeeper(pq types.PQAuthKeeper) {
 // (approve by the owner, or transferFrom out of the owner's balance) when
 // the owner has a registered ML-DSA-87 key and its EVM authorisation window
 // is closed. Unregistered owners, and chains without x/pqauth, are not
-// affected.
+// affected. Below the pqauth hardening v2 activation height it always returns
+// nil (32ee354 behaviour).
 func (k Keeper) CheckOwnerEVMWindow(ctx sdk.Context, owner common.Address) error {
-	if k.pqAuthKeeper == nil {
+	if k.pqAuthKeeper == nil || !pqauthtypes.HardeningV2Active(ctx.BlockHeight()) {
 		return nil
 	}
 	addr := sdk.AccAddress(owner.Bytes())

@@ -16,7 +16,11 @@ import (
 // AuthzKeeper lists and deletes grants where an account is the granter.
 // GranterGrants reads only the granter's key prefix, so the cost of a lookup
 // is bounded by that account's own grants, not by every grant on chain.
+//
+// IterateGrants is the full-store scan used below the hardening v2
+// activation height, so gas there matches 32ee354.
 type AuthzKeeper interface {
+	IterateGrants(ctx context.Context, handler func(granterAddr, granteeAddr sdk.AccAddress, grant authz.Grant) bool)
 	GranterGrants(ctx context.Context, req *authz.QueryGranterGrantsRequest) (*authz.QueryGranterGrantsResponse, error)
 	DeleteGrant(ctx context.Context, grantee, granter sdk.AccAddress, msgType string) error
 }
