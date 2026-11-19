@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/holiman/uint256"
 
+	pqauthtypes "github.com/cosmos/evm/x/pqauth/types"
 	"github.com/cosmos/evm/x/vm/types"
 )
 
@@ -138,7 +139,21 @@ func (s *stateObject) AddBalance(amount *uint256.Int) uint256.Int {
 	if amount.IsZero() {
 		return *(s.Balance())
 	}
-	return s.SetBalance(new(uint256.Int).Add(s.Balance(), amount))
+	if !pqauthtypes.UpstreamFixesActive(s.db.ctx.BlockHeight()) {
+		return s.SetBalance(new(uint256.Int).Add(s.Balance(), amount))
+	}
+
+	// Upstream fix: refuse a balance addition that overflows.
+	newBalance, overflowed := new(uint256.Int).AddOverflow(s.Balance(), amount)
+	if overflowed {
+		panic(fmt.Sprintf(
+			"state balance overflow for %s: have=%s add=%s",
+			s.address.Hex(),
+			s.Balance().String(),
+			amount.String(),
+		))
+	}
+	return s.SetBalance(newBalance)
 }
 
 // SubBalance removes amount from s's balance.
