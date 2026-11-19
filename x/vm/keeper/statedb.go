@@ -2,6 +2,7 @@ package keeper
 
 import (
 	"errors"
+	"math"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -10,6 +11,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	evmtrace "github.com/cosmos/evm/trace"
+	pqauthtypes "github.com/cosmos/evm/x/pqauth/types"
 	"github.com/cosmos/evm/x/vm/statedb"
 	"github.com/cosmos/evm/x/vm/types"
 
@@ -178,10 +180,24 @@ func (k *Keeper) SetBalanceWithLocked(ctx sdk.Context, addr common.Address, amou
 	defer func() { evmtrace.EndSpanErr(span, err) }()
 	cosmosAddr := sdk.AccAddress(addr.Bytes())
 
-	// Only check blocked addresses when balance is increasing (receiving funds).
-	coin := k.bankWrapper.SpendableCoin(ctx, cosmosAddr, types.GetEVMCoinDenom())
-	if amount.ToBig().Cmp(coin.Amount.BigInt()) > 0 && k.bankWrapper.BlockedAddr(cosmosAddr) {
-		return errorsmod.Wrapf(errortypes.ErrUnauthorized, "%s is not allowed to receive funds", cosmosAddr)
+	if pqauthtypes.UpstreamFixesActive(ctx.BlockHeight()) {
+		// Upstream fix: refuse module accounts, and refuse any balance change
+		// on blocked addresses.
+		isModule := false
+		if acct := k.accountKeeper.GetAccount(ctx, cosmosAddr); acct != nil {
+			_, isModule = acct.(sdk.ModuleAccountI)
+		}
+		coin := k.bankWrapper.SpendableCoin(ctx, cosmosAddr, types.GetEVMCoinDenom())
+		isBlockedChange := k.bankWrapper.BlockedAddr(cosmosAddr) && amount.ToBig().Cmp(coin.Amount.BigInt()) != 0
+		if isModule || isBlockedChange {
+			return errorsmod.Wrapf(errortypes.ErrUnauthorized, "%s is not allowed to receive funds", cosmosAddr)
+		}
+	} else {
+		// Only check blocked addresses when balance is increasing (receiving funds).
+		coin := k.bankWrapper.SpendableCoin(ctx, cosmosAddr, types.GetEVMCoinDenom())
+		if amount.ToBig().Cmp(coin.Amount.BigInt()) > 0 && k.bankWrapper.BlockedAddr(cosmosAddr) {
+			return errorsmod.Wrapf(errortypes.ErrUnauthorized, "%s is not allowed to receive funds", cosmosAddr)
+		}
 	}
 
 	newBalance := new(big.Int).Add(amount.ToBig(), locked)
@@ -323,6 +339,36 @@ func (k *Keeper) DeleteCode(ctx sdk.Context, codeHash []byte) {
 	)
 }
 
+// hasStakingPositions reports whether the account has any staking positions:
+// delegations, redelegations or unbonding delegations.
+func (k *Keeper) hasStakingPositions(ctx sdk.Context, cosmosAddr sdk.AccAddress) (bool, error) {
+	delegations, err := k.stakingKeeper.GetAllDelegatorDelegations(ctx, cosmosAddr)
+	if err != nil {
+		return false, errorsmod.Wrapf(err, "failed to get delegations for account %s", cosmosAddr)
+	}
+	if len(delegations) > 0 {
+		return true, nil
+	}
+
+	redelegations, err := k.stakingKeeper.GetRedelegations(ctx, cosmosAddr, math.MaxUint16)
+	if err != nil {
+		return false, errorsmod.Wrapf(err, "failed to get redelegations for account %s", cosmosAddr)
+	}
+	if len(redelegations) > 0 {
+		return true, nil
+	}
+
+	unbondingDelegations, err := k.stakingKeeper.GetAllUnbondingDelegations(ctx, cosmosAddr)
+	if err != nil {
+		return false, errorsmod.Wrapf(err, "failed to get unbonding delegations for account %s", cosmosAddr)
+	}
+	if len(unbondingDelegations) > 0 {
+		return true, nil
+	}
+
+	return false, nil
+}
+
 // DeleteAccount handles contract's suicide call:
 // - clear balance
 // - remove code
@@ -341,6 +387,18 @@ func (k *Keeper) DeleteAccount(ctx sdk.Context, addr common.Address) error {
 	// NOTE: only Ethereum contracts can be self-destructed
 	if !k.IsContract(ctx, addr) {
 		return errors.New("only smart contracts can be self-destructed")
+	}
+
+	// Upstream fix: reject deleting an account that has open staking positions.
+	if pqauthtypes.UpstreamFixesActive(ctx.BlockHeight()) {
+		hasPositions, err := k.hasStakingPositions(ctx, cosmosAddr)
+		if err != nil {
+			return err
+		}
+		if hasPositions {
+			return errorsmod.Wrapf(errors.New("cannot self-destruct an account with staking positions"),
+				"account %s has delegations, redelegations or unbonding delegations", cosmosAddr)
+		}
 	}
 
 	// set account to a base account to set the whole balance as spendable
