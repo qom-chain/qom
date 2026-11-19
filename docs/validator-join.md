@@ -181,7 +181,7 @@ Clone the repository and check out the release:
 mkdir -p ~/qom-build && cd ~/qom-build
 git clone https://github.com/qom-chain/qom.git
 cd qom
-git checkout qom-v1.0.1
+git checkout qom-v1.0.2
 ```
 
 The release uses CometBFT v0.39.3 and Cosmos SDK v0.54.3 with two small
@@ -210,7 +210,7 @@ sha256sum build/evmd
 The SHA-256 must be:
 
 ```text
-b1d311a17600f4f0874100d771fc9fa762347df8b00aab5d556b21f57d5626eb
+bed715bc4cb6d838b2a1837619cc419edbb04853da3ab9e380c0b6981f56cc66
 ```
 
 This hash was reproduced on Debian 13 (gcc 14.2, GNU binutils 2.44). A
@@ -242,7 +242,7 @@ SHA-256 to identify the binary.
   a validator set that mixes patched and stock nodes stops at the first
   round above 0.
 - **Activation heights.** Protocol rule changes switch on at fixed block
-  heights. This release has two: 33000 and 34000. On chain
+  heights. This release has three: 33000, 34000 and 40000. On chain
   `qom_33303-1`, the node refuses to start if a binary's built-in heights
   differ from the release values. Never build a mainnet binary with `-X`
   linker overrides.
@@ -266,7 +266,7 @@ and `config/node_key.json` (your P2P identity). Back them up in section 7.
 Install the mainnet genesis and check it:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/qom-chain/qom/qom-v1.0.1/evmd/qom_33303-1-genesis.json \
+curl -fsSL https://raw.githubusercontent.com/qom-chain/qom/qom-v1.0.2/evmd/qom_33303-1-genesis.json \
   -o "$QOM_HOME/config/genesis.json"
 echo "51f77bb2646e5a768562e5827c50b2416726c9a6a6249772e9baa5d27644a1bd  $QOM_HOME/config/genesis.json" | sha256sum -c -
 evmd genesis validate --home "$QOM_HOME"
@@ -360,6 +360,7 @@ journalctl -u qom -f -o cat
 At startup you should see these lines:
 
 ```text
+INF upstream fixes activation height height=40000 module=server
 INF pqauth validator key guard activation height height=34000 module=server
 INF pqauth hardening v2 activation height height=33000 module=server
 INF loaded hybrid validator consensus_key=ed25519 mldsa_key=/home/qom/.qom/config/mldsa_priv_validator_key.json module=server
@@ -1053,7 +1054,7 @@ passed.
 
 | Symptom | Cause and fix |
 | --- | --- |
-| `panic: pqauth: this binary has hardening v2 activation height ... but qom_33303-1 requires ...` (or the same for the validator key guard) at start | Not the release binary (built with an override or from the wrong commit). Rebuild from the release tag (section 3). |
+| `panic: pqauth: this binary has hardening v2 activation height ... but qom_33303-1 requires ...` (or the same for the validator key guard or the upstream fixes) at start | Not the release binary (built with an override or from the wrong commit). Rebuild from the release tag (section 3). |
 | `vote-extension round patch missing` at start | Built against stock CometBFT. Run `sh scripts/prepare-evmd-build.sh` before `go build`. |
 | `undefined: state.QOMXABCIVoteExtensionRoundPatched` during the build | The same: the patched CometBFT tree is missing. Run the prepare script. |
 | `ML-DSA key file ... is missing, but consensus address ... has an on-chain or genesis ML-DSA binding; refusing to auto-generate a new key` | Your validator key file is gone. Restore `config/mldsa_priv_validator_key.json` from backup (7.5), mode 0600. |
