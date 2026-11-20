@@ -4,8 +4,8 @@
 # way. The patched trees and the go.mod replaces are not committed.
 #
 # Default dest layout (required to reproduce the live mainnet evmd hash):
-#   ../src-voteext/cometbft-v0.39.3-voteext
-#   ../src-voteext/cosmos-sdk-v0.54.3-qomx
+#   ../src-voteext/cometbft-v0.39.4-voteext
+#   ../src-voteext/cosmos-sdk-v0.54.5-qomx
 # Those directory names are recorded in the binary's build info.
 #
 # Release build (reproduces the published sha256; see docs/build.md):

@@ -11,7 +11,7 @@ import (
 // assertVoteExtensionRoundPatch refuses to start evmd unless this binary was
 // built against the QOMX CometBFT vote-extension patch. The compile-time
 // reference to QOMXABCIVoteExtensionRoundPatched fails to compile on stock
-// v0.39.3. The reflection checks catch a types-only copy that is missing the
+// v0.39.4. The reflection checks catch a types-only copy that is missing the
 // Round field. The const is written by scripts/patch-cometbft-voteext.sh
 // together with the execution.go injection, so a complete patch is required
 // to both compile and start.
