@@ -8,7 +8,7 @@
 #   ../src-voteext/cosmos-sdk-v0.54.5-qomx
 # Those directory names are recorded in the binary's build info.
 #
-# Release build (reproduces the published sha256; see docs/build.md):
+# Release build (reproduces the published sha256; see docs/validator-join.md, section 3):
 #   export GOTOOLCHAIN=go1.26.11 CGO_ENABLED=1
 #   sh scripts/prepare-evmd-build.sh
 #   cd evmd && go build -trimpath -buildvcs=false -o build/evmd ./cmd/evmd
