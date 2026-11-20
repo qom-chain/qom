@@ -1,13 +1,13 @@
 #!/bin/sh
 # Rebuild the local CometBFT module that carries vote round and vote type on
 # the in-process ABCI requests. Socket and gRPC ABCI still drop those fields.
-# The 74MB tree is not committed. Default dest is ../src-voteext/cometbft-v0.39.3-voteext
+# The 74MB tree is not committed. Default dest is ../src-voteext/cometbft-v0.39.4-voteext
 # (relative to the repo root). Both go.mod files replace cometbft with it.
 set -eu
 
 root=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
-dest=${1:-"$root/../src-voteext/cometbft-v0.39.3-voteext"}
-version=v0.39.3
+dest=${1:-"$root/../src-voteext/cometbft-v0.39.4-voteext"}
+version=v0.39.4
 
 # Prefer the Go module cache copy; otherwise download it from the Go module
 # proxy (the download is verified against go.sum / sum.golang.org).
@@ -27,7 +27,7 @@ chmod -R u+w "$dest"
 patch -d "$dest" -p1 < "$root/scripts/cometbft-voteext.patch"
 
 # Compile-time sentinel: evmd's startup guard references this const, so a
-# build against stock CometBFT v0.39.3 fails to compile instead of starting
+# build against stock CometBFT v0.39.4 fails to compile instead of starting
 # with a silent round-0 binding.
 cat > "$dest/state/qomx_round_patch.go" << 'EOF'
 package state
@@ -35,7 +35,7 @@ package state
 // QOMXABCIVoteExtensionRoundPatched is true when this CometBFT tree injects
 // vote.Round and vote.Type into in-process ABCI ExtendVote and
 // VerifyVoteExtension requests. evmd refuses to start unless this const is
-// present, so a build against stock v0.39.3 will not compile the guard.
+// present, so a build against stock v0.39.4 will not compile the guard.
 const QOMXABCIVoteExtensionRoundPatched = true
 EOF
 

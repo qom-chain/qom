@@ -156,9 +156,9 @@ go version
 # go version go1.26.11 linux/amd64
 ```
 
-`go.mod` still declares `go 1.25.9`. That is intended: the release is built
-with the Go 1.26.11 toolchain set by `GOTOOLCHAIN`, and the `go.mod` line
-is left unchanged.
+`go.mod` declares `go 1.26.6`, the minimum Go version required by
+Cosmos SDK v0.54.5. The release is built with the Go 1.26.11 toolchain set
+by `GOTOOLCHAIN`.
 
 `GOMODCACHE` must be exactly `/var/tmp/qom-gomodcache`. One dependency
 records that path in the binary, so another path builds a binary that
@@ -181,12 +181,13 @@ Clone the repository and check out the release:
 mkdir -p ~/qom-build && cd ~/qom-build
 git clone https://github.com/qom-chain/qom.git
 cd qom
-git checkout qom-v1.0.2
+git checkout qom-v1.0.3
 ```
 
-The release uses CometBFT v0.39.3 and Cosmos SDK v0.54.3 with two small
-patches that live in this repository (`scripts/cometbft-voteext.patch` and
-`scripts/cosmos-sdk-v0.54.3-clifix.patch`). This script downloads the
+The release uses CometBFT v0.39.4 and Cosmos SDK v0.54.5 with small
+patches that live in this repository (`scripts/cometbft-voteext.patch`,
+`scripts/cosmos-sdk-v0.54.5-clifix.patch` and
+`scripts/cosmos-sdk-v0.54.5-keepers.patch`). This script downloads the
 upstream modules through the Go module proxy, which checks them against
 `go.sum`, applies the patches into `../src-voteext/`, and points
 `evmd/go.mod` at them:
@@ -210,7 +211,7 @@ sha256sum build/evmd
 The SHA-256 must be:
 
 ```text
-bed715bc4cb6d838b2a1837619cc419edbb04853da3ab9e380c0b6981f56cc66
+dc9ecf84ffe647582fb0faf0c012144860cfd3e5e719fdd70fe89f1cecdf4dae
 ```
 
 This hash was reproduced on Debian 13 (gcc 14.2, GNU binutils 2.44). A
@@ -227,7 +228,7 @@ Install the binary:
 sudo install -m 0755 build/evmd /usr/local/bin/evmd
 sha256sum /usr/local/bin/evmd
 evmd version --long | grep -E '^(cosmos_sdk_version|go):'
-# cosmos_sdk_version: v0.54.3
+# cosmos_sdk_version: v0.54.5
 # go: go version go1.26.11 linux/amd64
 ```
 
@@ -266,7 +267,7 @@ and `config/node_key.json` (your P2P identity). Back them up in section 7.
 Install the mainnet genesis and check it:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/qom-chain/qom/qom-v1.0.2/evmd/qom_33303-1-genesis.json \
+curl -fsSL https://raw.githubusercontent.com/qom-chain/qom/qom-v1.0.3/evmd/qom_33303-1-genesis.json \
   -o "$QOM_HOME/config/genesis.json"
 echo "51f77bb2646e5a768562e5827c50b2416726c9a6a6249772e9baa5d27644a1bd  $QOM_HOME/config/genesis.json" | sha256sum -c -
 evmd genesis validate --home "$QOM_HOME"

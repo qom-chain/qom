@@ -6,7 +6,7 @@ halts at round ≥ 1.
 
 ## What changed
 
-- `scripts/patch-cometbft-voteext.sh` patches CometBFT v0.39.3 so
+- `scripts/patch-cometbft-voteext.sh` patches CometBFT v0.39.4 so
   in-process `RequestExtendVote` and `RequestVerifyVoteExtension` carry
   `Round` and `VoteType`. The script also writes
   `state/qomx_round_patch.go` with `QOMXABCIVoteExtensionRoundPatched`.

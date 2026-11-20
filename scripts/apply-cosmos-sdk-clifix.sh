@@ -1,5 +1,5 @@
 #!/bin/sh
-# Build a local Cosmos SDK v0.54.3 module carrying the QOMX client-only CLI fix
+# Build a local Cosmos SDK v0.54.5 module carrying the QOMX client-only CLI fix
 # (--gas auto / --dry-run key resolution, default gas-adjustment 1.1, JSON dry-run
 # output, fee-aware gas estimation, and updated dry-run help) and point
 # evmd/go.mod at it with a RELATIVE replace directive.
@@ -8,17 +8,22 @@
 # not change any state machine, ante, or consensus code, so nodes built with or
 # without it are consensus-compatible. Live mainnet evmd is built with it.
 #
+# A second patch (cosmos-sdk-v0.54.5-keepers.patch) keeps the x/distribution
+# and x/staking keeper code at v0.54.3, so block results match the chain
+# history. Every mainnet evmd built from this tree must carry both patches.
+#
 # Usage: scripts/apply-cosmos-sdk-clifix.sh [dest-dir]
-#   dest-dir defaults to ../src-voteext/cosmos-sdk-v0.54.3-qomx (relative to
+#   dest-dir defaults to ../src-voteext/cosmos-sdk-v0.54.5-qomx (relative to
 #   the repo root), matching scripts/patch-cometbft-voteext.sh. The tree is
 #   not committed. The src-voteext directory name is recorded in evmd build
 #   info and is required to reproduce the live mainnet binary hash.
 set -eu
 
 root=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
-dest=${1:-"$root/../src-voteext/cosmos-sdk-v0.54.3-qomx"}
-patchfile="$root/scripts/cosmos-sdk-v0.54.3-clifix.patch"
-version=v0.54.3
+dest=${1:-"$root/../src-voteext/cosmos-sdk-v0.54.5-qomx"}
+patchfile="$root/scripts/cosmos-sdk-v0.54.5-clifix.patch"
+keeperpatch="$root/scripts/cosmos-sdk-v0.54.5-keepers.patch"
+version=v0.54.5
 
 # Prefer the Go module cache copy; otherwise download it.
 mod=$(go env GOMODCACHE)/github.com/cosmos/cosmos-sdk@$version
@@ -35,6 +40,7 @@ mkdir -p "$(dirname "$dest")"
 cp -a "$mod" "$dest"
 chmod -R u+w "$dest"
 patch -d "$dest" -p1 < "$patchfile"
+patch -d "$dest" -p1 < "$keeperpatch"
 
 # Add a relative replace to evmd/go.mod (idempotent).
 dest_abs=$(CDPATH= cd -- "$dest" && pwd)
