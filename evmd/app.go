@@ -932,11 +932,38 @@ func (app *EVMD) InitChainer(ctx sdk.Context, req *abci.RequestInitChain) (*abci
 		panic(err)
 	}
 
-	if err := app.UpgradeKeeper.SetModuleVersionMap(ctx, app.ModuleManager.GetVersionMap()); err != nil {
+	if err := app.UpgradeKeeper.SetModuleVersionMap(ctx, genesisModuleVersionMap(ctx.ChainID(), app.ModuleManager.GetVersionMap())); err != nil {
 		panic(err)
 	}
 
 	return app.ModuleManager.InitGenesis(ctx, app.appCodec, genesisState)
+}
+
+// mainnetGenesisModuleVersions lists the module consensus versions that
+// qom_33303-1 recorded at genesis where they differ from the versions of the
+// modules compiled into this binary. A node that replays mainnet from genesis
+// must write the same version map to reproduce the genesis state. Store
+// migrations between these versions run through an upgrade handler.
+var mainnetGenesisModuleVersions = module.VersionMap{
+	feegrant.ModuleName: 2,
+}
+
+// genesisModuleVersionMap returns the module version map that InitChain stores
+// for chainID.
+func genesisModuleVersionMap(chainID string, current module.VersionMap) module.VersionMap {
+	if chainID != pqauthtypes.MainnetChainID {
+		return current
+	}
+	vm := make(module.VersionMap, len(current))
+	for name, v := range current {
+		vm[name] = v
+	}
+	for name, v := range mainnetGenesisModuleVersions {
+		if _, ok := vm[name]; ok {
+			vm[name] = v
+		}
+	}
+	return vm
 }
 
 func (app *EVMD) PreBlocker(ctx sdk.Context, _ *abci.RequestFinalizeBlock) (*sdk.ResponsePreBlock, error) {
