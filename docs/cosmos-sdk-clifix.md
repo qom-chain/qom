@@ -1,7 +1,7 @@
 # Cosmos SDK client fix (`--gas auto` / `--dry-run`)
 
-Live QOM mainnet (`qom_33303-1`) `evmd` is built against Cosmos SDK v0.54.3 with a
-small **client-only** patch: `scripts/cosmos-sdk-v0.54.3-clifix.patch`.
+Live QOM mainnet (`qom_33303-1`) `evmd` is built against Cosmos SDK v0.54.5 with a
+small **client-only** patch: `scripts/cosmos-sdk-v0.54.5-clifix.patch`.
 
 It fixes these CLI bugs in upstream `client/` and `x/bank` help text:
 
@@ -26,16 +26,23 @@ PQ `--gas auto` also charges the real packed ML-DSA extension size in simulate
 mode (`ante/cosmos/mldsa.go` in this repository, not this SDK patch). That
 change is similarly limited to `simulate == true`.
 
+## Keeper patch
+
+`scripts/cosmos-sdk-v0.54.5-keepers.patch` keeps the `x/distribution` and
+`x/staking` keeper code at its v0.54.3 form, so block results match the chain
+history. `scripts/apply-cosmos-sdk-clifix.sh` applies it after the client patch.
+Every mainnet binary carries both patches.
+
 ## Build the live mainnet binary
 
-`scripts/prepare-evmd-build.sh` applies this patch together with the CometBFT
+`scripts/prepare-evmd-build.sh` applies these patches together with the CometBFT
 vote-extension patch. Follow
 [validator-join.md, section 3](validator-join.md#3-build-the-release-binary)
 for the exact release recipe and SHA-256.
 
 ## Vote extensions
 
-Live mainnet runs the round-aware CometBFT v0.39.3 tree from
+Live mainnet runs the round-aware CometBFT v0.39.4 tree from
 `scripts/patch-cometbft-voteext.sh`. `abci/vote_extensions.go` signs and
 verifies ML-DSA vote extensions with the request's round and vote type.
 See `docs/voteext-round-aware-cutover.md`.
