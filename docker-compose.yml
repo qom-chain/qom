@@ -1,3 +1,5 @@
+# Upstream Cosmos EVM example localnet, used by Makefile targets.
+# Not a QOM mainnet setup; see docs/validator-join.md.
 version: "3"
 
 services:

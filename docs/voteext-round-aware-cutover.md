@@ -22,7 +22,7 @@ halts at round ≥ 1.
 
 Socket and gRPC ABCI still drop those fields. Mainnet uses in-process ABCI.
 
-Build steps are in `docs/mainnet.md`.
+Build steps are in `docs/validator-join.md`, section 3.
 
 ## ML-DSA key file vs binding
 

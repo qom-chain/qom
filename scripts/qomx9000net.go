@@ -1,4 +1,4 @@
-// Command qomx9000net prepares and checks a qomx_9000-3 genesis.
+// Command qomx9000net prepares and checks a local multi-validator test genesis.
 //
 //	go run ./scripts/qomx9000net.go bind --genesis FILE --chain-id ID --val home=DIR,key=NAME,mldsa=FILE
 //	go run ./scripts/qomx9000net.go check-block --genesis FILE --chain-id ID --block FILE

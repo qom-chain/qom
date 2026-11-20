@@ -1,5 +1,9 @@
 # AGENTS.md
 
+> Upstream Cosmos EVM guidance, kept for reference. It is not
+> QOM-specific. Paths below are relative to the repository root. For QOM,
+> start with the top-level [README.md](../../README.md).
+
 Guidance for AI coding agents working in the Cosmos EVM repository.
 
 ## Project Overview
@@ -38,7 +42,7 @@ Top-level directories:
   `evmd` app instance.
 - `proto/` — protobuf definitions; generated code lives next to the modules.
 - `contracts/` — Solidity sources compiled via `scripts/compile_smart_contracts`.
-- `docs/` — including `docs/migrations` for upgrade guides.
+- `docs/` — including `docs/upstream/migrations` for upgrade guides.
 
 ## Toolchain
 
@@ -123,7 +127,7 @@ make localnet-stop
   link an existing GitHub issue (see `CONTRIBUTING.md`).
 - **Migrations.** Any breaking change to chain state, module params, or
   storage requires a corresponding migration and a doc entry under
-  `docs/migrations`.
+  `docs/upstream/migrations`.
 - **Precompile changes** must update both Go bindings and the corresponding
   Solidity ABI in `precompiles/*/abi.json` — they are checked at startup.
 - **Don't add features beyond the task.** Match the change to what was

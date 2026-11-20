@@ -34,6 +34,8 @@ is built to move to full post-quantum signing as wallets support it.
 - [Add QOM to MetaMask](docs/mainnet.md#add-qom-to-metamask)
 - [Round-aware vote extensions](docs/voteext-round-aware-cutover.md)
 - [Cosmos SDK client fix](docs/cosmos-sdk-clifix.md)
+- [Changelog](CHANGELOG.md)
+- [Upstream Cosmos EVM material](docs/upstream/README.md) (not QOM-specific, including the upstream audit PDF)
 
 ## Build
 

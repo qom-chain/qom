@@ -108,7 +108,7 @@ patched and stock nodes stops at round 1 or higher. See
 | Field | Value |
 | --- | --- |
 | Network name | QOM |
-| RPC URL | the node's JSON-RPC endpoint, port 8545 |
+| RPC URL | `https://rpc.qomx.io` (public), or your own node's JSON-RPC endpoint on port 8545 |
 | Chain ID | 33303 |
 | Currency symbol | QOMX |
 | Decimals | 18 |
@@ -207,8 +207,9 @@ up the three key files and the account keyring. Replacing
 `data/priv_validator_state.json`, which is a separate recovery step and
 is not part of a normal start.
 
-Set `external_address` on this node to the public `p2p.qomx.io:26656` that peers
-should dial. The signed gentx memo stays `0.0.0.0`.
+Every operator whose node should accept inbound peers sets
+`external_address` in `config.toml` to its own public host and port, for
+example `YOUR_PUBLIC_HOST:26656`. The signed gentx memo stays `0.0.0.0`.
 
 ## Become a validator
 
