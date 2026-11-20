@@ -76,6 +76,18 @@ Staking and slashing parameters:
 | Inflation | 0 (rewards come from transaction fees) |
 | Community tax | 2% |
 
+Governance parameters:
+
+| Parameter | Value |
+| --- | --- |
+| Minimum deposit | 1 QOMX (`1000000000000000000` aqomx) |
+| Expedited minimum deposit | 5 QOMX (`5000000000000000000` aqomx) |
+| Deposit period | 48 hours |
+| Voting period | 48 hours (expedited: 24 hours) |
+| Quorum | 33.4% |
+| Pass threshold | 50% (expedited: 66.7%) |
+| Veto threshold | 33.4% |
+
 With 5-second blocks, missing more than 50 of the last 100 blocks (about
 4 minutes offline) jails you. Plan every restart and upgrade to take well
 under that.
@@ -115,40 +127,49 @@ sudo ufw enable
 Do not serve public RPC from a validator. Run a separate full node for
 that.
 
-Create a dedicated, unprivileged user to run the node:
+Create a dedicated, unprivileged user to run the node. Run this from your
+admin account (the account that can use `sudo`):
 
 ```bash
 sudo adduser --disabled-password --gecos "" qom
-sudo -iu qom
 ```
 
-Run the rest of this guide as `qom` unless a command uses `sudo`.
+The `qom` user has no password and cannot use `sudo`. Keep two shells
+open for the rest of this guide:
+
+- an **admin shell** (your own account) for every command that starts
+  with `sudo`, and for `journalctl`;
+- a **`qom` shell**, opened with `sudo -iu qom`, for every other command.
+
+Each code block below says which shell to use.
 
 ## 3. Build the release binary
 
 Every validator must run the same release. Mainnet nodes start only with
 the release binary; see "Why the release binary matters" below.
 
-Install the build tools (Debian/Ubuntu):
+Install the build tools (Debian/Ubuntu). Admin shell:
 
 ```bash
 sudo apt-get update
-sudo apt-get install -y build-essential git curl jq patch python3
+sudo apt-get install -y build-essential git curl jq patch python3 gnupg
 ```
 
 Install Go 1.26.11. Any Go 1.21 or newer can fetch the exact toolchain by
 itself when `GOTOOLCHAIN` is set. Without a system Go, install 1.26.11 from
-go.dev:
+go.dev. Admin shell:
 
 ```bash
+cd /tmp
 curl -fsSLO https://go.dev/dl/go1.26.11.linux-amd64.tar.gz
 sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go1.26.11.linux-amd64.tar.gz
-export PATH=/usr/local/go/bin:$PATH
 ```
 
-Set the build environment. These values are part of the release recipe:
+Set the build environment. These values are part of the release recipe.
+`qom` shell (from here to the end of the build):
 
 ```bash
+export PATH=/usr/local/go/bin:$PATH
 export GOTOOLCHAIN=go1.26.11
 export CGO_ENABLED=1
 export GOMODCACHE=/var/tmp/qom-gomodcache
@@ -222,10 +243,11 @@ it byte for byte. Build on Debian 13 (x86_64) to compare hashes.
 The build needs several GB of temporary space. If `/tmp` is a small tmpfs,
 run `export TMPDIR=$HOME/tmp && mkdir -p $TMPDIR` first.
 
-Install the binary:
+Install the binary. Admin shell (the full path is the build output in
+the `qom` user's home):
 
 ```bash
-sudo install -m 0755 build/evmd /usr/local/bin/evmd
+sudo install -m 0755 /home/qom/qom-build/qom/evmd/build/evmd /usr/local/bin/evmd
 sha256sum /usr/local/bin/evmd
 evmd version --long | grep -E '^(cosmos_sdk_version|go):'
 # cosmos_sdk_version: v0.54.5
@@ -252,6 +274,9 @@ SHA-256 to identify the binary.
   stops with an app hash error.
 
 ## 4. Initialize and configure the node
+
+Sections 4, 6, 7, 8, 9 and 10 use the `qom` shell unless a command starts
+with `sudo`.
 
 ```bash
 export QOM_HOME=$HOME/.qom
@@ -310,14 +335,20 @@ Notes on the other defaults:
 - EVM JSON-RPC (`[json-rpc] enable`) stays off. A validator does not need it.
 - CometBFT RPC listens on `127.0.0.1:26657`, gRPC on `localhost:9090`.
   Keep them local.
-- `pruning = "default"` keeps the last 100 states plus every 500th state
-  and is fine for a validator.
+- `pruning = "default"` keeps the last 362880 states (about 21 days at
+  5-second blocks) and prunes every 10 blocks. That is fine for a
+  validator. To use less disk, set `pruning = "custom"`,
+  `pruning-keep-recent = "100"` and `pruning-interval = "10"` in
+  `app.toml`.
 - Mainnet nodes do not publish state-sync snapshots, so a new node syncs
   from genesis. That takes minutes at the current chain size.
+- The current release (`qom-v1.0.3`) replays the whole chain from block 1,
+  including the activation heights 33000, 34000 and 40000. You do not need
+  older releases. Do not use v1.0.0 or v1.0.1: they stop at block 40000.
 
 ## 5. Run the node with systemd
 
-Create `/etc/systemd/system/qom.service`:
+Create `/etc/systemd/system/qom.service`. Admin shell:
 
 ```bash
 sudo tee /etc/systemd/system/qom.service > /dev/null <<'EOF'
@@ -352,10 +383,10 @@ user is running, which guards against two processes signing with one key on
 this host. If you happen to run an `evmd` CLI command at the moment the
 service starts, the start is refused and systemd retries after 5 seconds.
 
-Follow the logs:
+Follow the logs. Admin shell:
 
 ```bash
-journalctl -u qom -f -o cat
+sudo journalctl -u qom -f -o cat
 ```
 
 At startup you should see these lines:
@@ -366,6 +397,10 @@ INF pqauth validator key guard activation height height=34000 module=server
 INF pqauth hardening v2 activation height height=33000 module=server
 INF loaded hybrid validator consensus_key=ed25519 mldsa_key=/home/qom/.qom/config/mldsa_priv_validator_key.json module=server
 ```
+
+One `ERR failed to initialize rechecker context ... module=RecheckMempool`
+line can appear at startup, before the first block is processed. It is
+expected and harmless.
 
 On first start, a node with no ML-DSA-87 key on chain writes a new
 `config/mldsa_priv_validator_key.json`. That file becomes your validator's
@@ -588,6 +623,13 @@ double-sign. The penalty is a 5% slash and a permanent ban (tombstoning).
    knows the last height signed. If the old file cannot be copied, wait
    until the chain has moved at least a few blocks past the last height the
    old node signed before you start the new one.
+   Optionally, set `consensus.double_sign_check_height` to `10` on the new
+   server for this first start
+   (`evmd config set config consensus.double_sign_check_height 10 -s --home "$QOM_HOME"`),
+   then set it back to `0` once the node is signing. With a value above 0,
+   the node checks that many recent blocks at start and refuses to start
+   if it finds its own signature there, so every later restart would have
+   to wait that many blocks, which counts toward the downtime limit.
 5. Start the new node: `sudo systemctl start qom`. Check the startup lines
    in section 5 and that you are signing (section 10).
 
@@ -1013,7 +1055,7 @@ For Prometheus, set `instrumentation.prometheus true` in `config.toml`
 (`evmd config set config instrumentation.prometheus true -s --home "$QOM_HOME"`)
 and scrape port 26660 from your monitoring network only.
 
-**Logs.** `journalctl -u qom -f -o cat`. The default level is `info`; set
+**Logs.** `sudo journalctl -u qom -f -o cat` (admin shell). The default level is `info`; set
 `log_level` in `config.toml` to change it.
 
 **Edit validator details or commission:**
@@ -1033,15 +1075,16 @@ and, for rule changes, an activation height. Every validator must install
 the new release **before** its activation height. A node still on the old
 release when the new rules activate stops with an app hash error.
 
-1. Build the new tag as in section 3 into a new directory and check its
+1. In the `qom` shell, build the new tag as in section 3 and check its
    SHA-256 against the release notes.
-2. Back up the running binary:
+2. In the admin shell, back up the running binary:
    `sudo cp /usr/local/bin/evmd /usr/local/bin/evmd.$(date +%Y%m%d-%H%M%S)`.
-3. Swap and restart, keeping downtime short:
+3. In the admin shell, swap and restart, keeping downtime short. Use the
+   full path of the new build output (here the section 3 path):
 
    ```bash
    sudo systemctl stop qom
-   sudo install -m 0755 build/evmd /usr/local/bin/evmd
+   sudo install -m 0755 /home/qom/qom-build/qom/evmd/build/evmd /usr/local/bin/evmd
    sudo systemctl start qom
    ```
 
